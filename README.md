@@ -8,8 +8,8 @@ Tizim GitHub Actions'da o'zi ishga tushadi. Kompyuterni yoqib turish shart emas.
 
 | Toshkent vaqti | Qanchalik tez-tez |
 |---|---|
-| 06:07 – 23:07 | har soatda |
-| 01:07 va 04:07 | kechasi ikki marta |
+| 07:07 – 22:07 | har soatda |
+| 00:07 va 04:07 | kechasi ikki marta |
 
 Kechasi (23:00–07:00) xabarlar **ovozsiz** keladi. Har kuni soat 21:00 dan keyin **kunlik yakun** keladi: nechta chiqish topildi va qaysi manbalarda. Bu xabar tizim ishlab turganini ham bildiradi.
 

@@ -2,9 +2,10 @@ name: OAV monitoring
 
 on:
   schedule:
-    # Toshkent vaqti = UTC+5. Kunduzi (06:07–23:07) har soatda, kechasi 01:07 va 04:07 da.
-    - cron: '7 1-18 * * *'
-    - cron: '7 20,23 * * *'
+    # Toshkent vaqti = UTC+5. Kunduzi (07:07–22:07) har soatda, kechasi 00:07 va 04:07 da.
+    # (Yopiq repo uchun oyiga 2000 bepul daqiqaga moslangan.)
+    - cron: '7 2-17 * * *'
+    - cron: '7 19,23 * * *'
   workflow_dispatch:
 
 permissions:

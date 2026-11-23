@@ -114,7 +114,10 @@ class Matcher:
                     if self._foreign_near(t, s, e):
                         continue  # "... Kazakhstan statistics agency" kabi
                     near = self.has_marker(t[max(0, s - 120): e + 120])
-                    if near or title_has or any_marker:
+                    if near and not self._foreign_near(t, s, e, 120, 120):
+                        found = ("aniq", m)
+                        break
+                    if (title_has or any_marker) and not self._foreign_near(t, s, e, 350, 200):
                         found = ("aniq", m)
                         break
                 if found:
