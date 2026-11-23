@@ -1,0 +1,139 @@
+# Qo'mita nomlari: matnda qidiriladigan iboralar (regex).
+#
+# Qoidalar:
+#  - Matn ham, iboralar ham kichik harfga o'tkaziladi.
+#  - Barcha tutuq belgilari (' ʻ ʼ ‘ ’ `) olib tashlanadi: "qo'mitasi" -> "qomitasi".
+#    Shuning uchun bu yerda iboralarni TUTUQ BELGISISIZ yozing.
+#  - Qo'shimchalarni ushlash uchun so'z o'zagini yozish kifoya:
+#    "statistika qomita" -> "qo'mitasi", "qo'mitasining", "qo'mitasiga" hammasini topadi.
+#
+# strong  — o'zi yetarli, faqat O'zbekiston qo'mitasini bildiradi.
+# context — umumiy ibora (boshqa davlat statistika idorasi ham bo'lishi mumkin),
+#           shuning uchun matnda O'zbekiston nomi ham bo'lsa hisoblanadi.
+# weak    — umumiy iboralar ("statistika ma'lumotlariga ko'ra"). Hozir O'CHIQ
+#           (enabled: false). Yoqilsa, ko'p "shovqin" keladi.
+
+strong:
+  # --- o'zbekcha (lotin)
+  - 'milliy statistika qomita'
+  - 'statistika qomita'
+  - 'statistika agentlig'
+  - 'statqomita'
+  - 'davstatqomita'
+  - 'statistika boshqarma'
+  - 'statistika bolim'
+  # --- o'zbekcha (kirill)
+  - 'миллий статистика қўмита'
+  - 'статистика қўмита'
+  - 'статистика агентлиг'
+  - 'статқўмита'
+  - 'давстатқўмита'
+  - 'статистика бошқарма'
+  # --- ruscha
+  - 'нацкомстат'
+  - 'национальн\w* комитет\w* (республики узбекистан )?по статистике'
+  - 'агентств\w* статистики при президенте (республики )?узбекистан'
+  - 'госкомстат\w* (республики )?узбекистан'
+  - 'узстат'
+  # --- inglizcha
+  - '\buzstat\b'
+  - '\bstat\.uz\b'
+  - 'national statistics committee of (the republic of )?uzbekistan'
+  - 'uzbekistan.{0,3}s (national )?statistics (committee|agency)'
+  - 'statistics agency under the president of (the republic of )?uzbekistan'
+  - 'national committee (of the republic of uzbekistan )?(on|for) statistics'
+  # --- boshqa tillar (O'zbekiston nomi bilan birga)
+  - 'özbekistan (ulusal )?istatistik'
+  - 'özbəkistan.{0,20}statistika komit'
+  - 'өзбекстан.{0,30}статистика'
+  - 'ouzbékistan.{0,30}statistique'
+  - 'usbekistan.{0,30}statistik'
+
+context:
+  # ruscha
+  - 'комитет\w* по статистике'
+  - 'госкомстат'
+  - 'агентств\w* (по )?статистик'
+  - 'управлени\w* статистики'
+  - 'статистическ\w* (комитет|ведомств|агентств)'
+  # inglizcha
+  - 'statistics committee'
+  - 'committee (on|for|of) statistics'
+  - 'statistic(s|al) agency'
+  - 'agency (on|for|of) statistics'
+  - 'statistical committee'
+  # turkcha / ozarbayjoncha / turkmancha
+  - 'istatistik (komite|ajans|kurul)'
+  - 'statistika komit'
+  # qozoq / qirg'iz / tojik
+  - 'статистика комитет'
+  - 'статистика агентт'
+  - 'кумита\w* (миллии )?омор'
+  - 'агентии (миллии )?омор'
+  # fransuz / nemis / ispan
+  - 'comité (national )?(de la |des |de )?statistique'
+  - 'agence (nationale )?(de la |des |de )?statistique'
+  - 'statistik(komitee|behörde|agentur|amt)'
+  - '(comité|agencia) (nacional )?de estad[ií]stica'
+  # arab / fors
+  - 'لجنة (الوطنية )?(لل|ال)?إحصاء'
+  - 'اللجنة الوطنية للإحصاء'
+  - '(هيئة|وكالة) (ال)?إحصاء'
+  - '(کمیته|سازمان) (ملی )?آمار'
+  # xitoy / koreys / yapon
+  - '统计委员会'
+  - '国家统计'
+  - '统计局'
+  - '통계위원회'
+  - '통계청'
+  - '統計委員会'
+
+# Matnda O'zbekiston borligini bildiruvchi so'zlar (context iboralari uchun).
+uzbekistan_markers:
+  - 'uzbek'
+  - 'ozbek'
+  - 'özbek'
+  - 'özbək'
+  - 'ouzbék'
+  - 'usbek'
+  - 'uzbeq'
+  - 'узбек'
+  - 'ўзбек'
+  - 'өзбек'
+  - 'ӯзбек'
+  - 'toshkent'
+  - 'tashkent'
+  - 'ташкент'
+  - 'тошкент'
+  - '乌兹别克'
+  - '烏茲別克'
+  - 'أوزبك'
+  - 'اوزبك'
+  - 'ازبکستان'
+  - '우즈베키스탄'
+  - 'ウズベキスタン'
+
+# "Statistika" so'zining turli tillardagi o'zagi — qidiruv natijalarini
+# taxminiy baholash uchun (sarlavhada O'zbekiston + statistika bo'lsa).
+stat_words:
+  - 'statist'
+  - 'статист'
+  - 'istatist'
+  - 'estadíst'
+  - 'estadist'
+  - 'statistique'
+  - 'статистика'
+  - 'омор'
+  - '统计'
+  - '統計'
+  - 'إحصاء'
+  - 'احصاء'
+  - 'آمار'
+  - '통계'
+
+weak:
+  enabled: false
+  patterns:
+    - 'statistika malumotlari'
+    - 'статистика маълумотлари'
+    - 'по данным статистики'

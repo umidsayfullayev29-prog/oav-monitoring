@@ -1,0 +1,119 @@
+# Manbalar ro'yxati.
+#
+# 1-qatlam: qidiruv tizimlari (Google News, Bing News) — butun dunyo OAVsi.
+# 2-qatlam: saytlarning RSS lentalari (tizim o'zi topadi).
+# 3-qatlam: saytning bosh sahifasi va bo'limlari — RSS bo'lmasa ham yangi
+#           maqolalarni topadi va har birining TO'LIQ MATNINI tekshiradi.
+#
+# Yangi sayt qo'shish: `sites` ro'yxatiga domen yozing. Xohlasangiz
+# `pages` bilan qo'shimcha bo'lim sahifalarini (masalan, /ru/news) bering.
+
+search:
+  # Google News: q — qidiruv so'rovi, lang — interfeys tili/mintaqa
+  google_news:
+    - {q: '"statistika qoʻmitasi"', lang: uz}
+    - {q: '"statistika qo''mitasi"', lang: uz}
+    - {q: '"statistika agentligi"', lang: uz}
+    - {q: '"статистика қўмитаси"', lang: uz}
+    - {q: '"статистика агентлиги"', lang: uz}
+    - {q: 'Нацкомстат', lang: ru}
+    - {q: '"комитет по статистике" Узбекистан', lang: ru}
+    - {q: '"агентство статистики" Узбекистан', lang: ru}
+    - {q: 'Госкомстат Узбекистана', lang: ru}
+    - {q: '"statistics committee" Uzbekistan', lang: en}
+    - {q: '"statistics agency" Uzbekistan', lang: en}
+    - {q: 'Uzstat', lang: en}
+    - {q: 'Uzbekistan statistics', lang: en}
+    - {q: 'Özbekistan istatistik', lang: tr}
+    - {q: 'Özbəkistan statistika', lang: az}
+    - {q: 'Өзбекстан статистика', lang: kk}
+    - {q: 'Өзбекстан статистика комитети', lang: ky}
+    - {q: 'Ӯзбекистон омор', lang: tg}
+    - {q: 'Ouzbékistan statistique', lang: fr}
+    - {q: 'Usbekistan Statistik', lang: de}
+    - {q: 'Uzbekistán estadística', lang: es}
+    - {q: 'أوزبكستان الإحصاء', lang: ar}
+    - {q: 'ازبکستان آمار', lang: fa}
+    - {q: '乌兹别克斯坦 统计', lang: zh}
+    - {q: '우즈베키스탄 통계', lang: ko}
+    - {q: 'ウズベキスタン 統計', lang: ja}
+  bing_news:
+    - {q: '"statistika qo''mitasi"', mkt: en-US}
+    - {q: '"statistika agentligi"', mkt: en-US}
+    - {q: 'Нацкомстат', mkt: ru-RU}
+    - {q: 'комитет по статистике Узбекистан', mkt: ru-RU}
+    - {q: 'Uzbekistan statistics committee', mkt: en-US}
+    - {q: 'Uzbekistan statistics agency', mkt: en-US}
+    - {q: 'Özbekistan istatistik', mkt: tr-TR}
+    - {q: 'Ouzbékistan statistique', mkt: fr-FR}
+    - {q: 'Usbekistan Statistik', mkt: de-DE}
+    - {q: '乌兹别克斯坦 统计', mkt: zh-CN}
+
+# O'zbekiston OAV saytlari (o'zbek, rus, ingliz versiyalari bilan)
+sites:
+  - {domain: kun.uz, pages: ['/', '/news/list', '/ru', '/ru/news/list', '/en', '/uz/news/category/iqtisodiyot']}
+  - {domain: daryo.uz, pages: ['/', '/ru', '/en']}
+  - {domain: gazeta.uz, pages: ['/ru/', '/oz/', '/uz/']}
+  - {domain: uza.uz, pages: ['/uz', '/ru', '/oz', '/en']}
+  - {domain: podrobno.uz, pages: ['/']}
+  - {domain: review.uz, pages: ['/', '/oz', '/en']}
+  - {domain: spot.uz, pages: ['/ru/', '/oz/']}
+  - {domain: xabar.uz, pages: ['/', '/ru', '/uz']}
+  - {domain: qalampir.uz, pages: ['/', '/ru', '/uz']}
+  - {domain: uzdaily.uz, pages: ['/uz', '/ru', '/en']}
+  - {domain: nuz.uz, pages: ['/']}
+  - {domain: anhor.uz, pages: ['/']}
+  - {domain: fergana.news, pages: ['/', '/news/']}
+  - {domain: kursiv.media, pages: ['/uz/', '/uz/news/']}
+  - {domain: aniq.uz, pages: ['/', '/ru', '/uz']}
+  - {domain: dunyo.info, pages: ['/']}
+  - {domain: zamin.uz, pages: ['/', '/ru/']}
+  - {domain: yuz.uz, pages: ['/', '/ru']}
+  - {domain: bugun.uz, pages: ['/']}
+  - {domain: uz.sputniknews.ru, pages: ['/']}
+  - {domain: oz.sputniknews.uz, pages: ['/']}
+  - {domain: uzreport.news, pages: ['/', '/ru']}
+  - {domain: darakchi.uz, pages: ['/']}
+  - {domain: hook.report, pages: ['/']}
+  - {domain: repost.uz, pages: ['/']}
+  - {domain: uz24.uz, pages: ['/']}
+  - {domain: sof.uz, pages: ['/']}
+  - {domain: xs.uz, pages: ['/uz', '/ru']}
+  - {domain: norma.uz, pages: ['/']}
+  - {domain: upl.uz, pages: ['/']}
+  - {domain: 12news.uz, pages: ['/']}
+  - {domain: tribuna.uz, pages: ['/']}
+  - {domain: jahonnews.uz, pages: ['/']}
+  - {domain: yangiuzbekiston.uz, pages: ['/']}
+  - {domain: xalqsozi.uz, pages: ['/']}
+  - {domain: pv.uz, pages: ['/']}
+  - {domain: nrm.uz, pages: ['/']}
+  - {domain: uzbekistonovozi.uz, pages: ['/']}
+  - {domain: ishonch.uz, pages: ['/']}
+  - {domain: marifat.uz, pages: ['/']}
+  - {domain: mtrk.uz, pages: ['/uz', '/ru']}
+  - {domain: uzreport.tv, pages: ['/']}
+  - {domain: infocom.uz, pages: ['/']}
+  - {domain: kommersant.uz, pages: ['/']}
+  - {domain: economist.uz, pages: ['/']}
+  - {domain: biznes-daily.uz, pages: ['/']}
+  - {domain: uzbekistan24.uz, pages: ['/']}
+  - {domain: kanalfoto.uz, pages: ['/']}
+  - {domain: olamnews.uz, pages: ['/']}
+  - {domain: azon.uz, pages: ['/']}
+  - {domain: ictnews.uz, pages: ['/']}
+  - {domain: president.uz, pages: ['/uz', '/ru']}
+  - {domain: gov.uz, pages: ['/oz/news']}
+  - {domain: ut.uz, pages: ['/']}
+  - {domain: themag.uz, pages: ['/']}
+  - {domain: mediabay.uz, pages: ['/']}
+  - {domain: platina.uz, pages: ['/']}
+  - {domain: kapital.uz, pages: ['/']}
+  - {domain: asiaterra.info, pages: ['/']}
+  - {domain: cabar.asia, pages: ['/']}
+  - {domain: eurasianet.org, pages: ['/region/uzbekistan']}
+  - {domain: trend.az, pages: ['/centralasia/uzbekistan/']}
+
+# Bitta ishga tushishda bir saytdan nechta YANGI maqolaning to'liq matni
+# tekshiriladi (ko'paytirsangiz sekinlashadi).
+max_new_articles_per_site: 40

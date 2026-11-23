@@ -1,0 +1,61 @@
+name: OAV monitoring
+
+on:
+  schedule:
+    # Toshkent vaqti = UTC+5. Kunduzi (06:07–23:07) har soatda, kechasi 01:07 va 04:07 da.
+    - cron: '7 1-18 * * *'
+    - cron: '7 20,23 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: oav-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Kutubxonalar
+        run: pip install -q -r requirements.txt
+
+      - name: Holatni tiklash (tekshirilgan havolalar)
+        uses: actions/cache/restore@v4
+        with:
+          path: state
+          key: oav-state-${{ github.run_id }}
+          restore-keys: oav-state-
+
+      - name: Monitoring
+        env:
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+        run: python -m monitor.main
+
+      - name: Holatni saqlash
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: state
+          key: oav-state-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Topilmalarni repoga yozish
+        if: always()
+        run: |
+          git config user.name "oav-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          if git diff --cached --quiet; then echo "O'zgarish yo'q"; exit 0; fi
+          git commit -q -m "OAV topilmalar: $(TZ=Asia/Tashkent date '+%d.%m.%Y %H:%M')"
+          for i in 1 2 3; do git pull -q --rebase && git push -q && exit 0; sleep 5; done
+          exit 1
