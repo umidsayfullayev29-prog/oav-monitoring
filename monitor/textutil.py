@@ -79,6 +79,18 @@ class Matcher:
             best = d if best is None else min(best, d)
         return best
 
+    def _foreign_near_sentence(self, t, s, e):
+        """Faqat shu gap ichida, iboraga yopishgan holda (oldida 30, ortida 22 belgi)."""
+        a = max(0, s - 30)
+        cut = max(t.rfind(". ", a, s), t.rfind("! ", a, s), t.rfind("? ", a, s), t.rfind("\n", a, s))
+        if cut >= 0:
+            a = cut + 1
+        b2 = e + 22
+        stop = [x for x in (t.find(". ", e, b2), t.find("\n", e, b2)) if x >= 0]
+        if stop:
+            b2 = min(stop)
+        return self._foreign_near(t[a:b2], s - a, e - a, s - a, b2 - e)
+
     def _foreign_near(self, t, s, e, before=45, after=22):
         """Ibora yonida (oldida 45, ortida 22 belgi) boshqa davlat nomi
         O'zbekiston nomidan yaqinroq turibdimi: "Tojikiston statistika agentligi",
@@ -105,7 +117,7 @@ class Matcher:
                 if title_foreign and not self.has_marker(t[:m.start()]) \
                         and self._foreign_near(t, m.start(), m.end(), 250, 0):
                     continue  # maqola boshqa davlat haqida va ibora o'sha davlat idorasini bildiradi
-                if not self._foreign_near(t, m.start(), m.end()):
+                if not self._foreign_near_sentence(t, m.start(), m.end()):
                     found = ("aniq", m)
                     break
             if found:
