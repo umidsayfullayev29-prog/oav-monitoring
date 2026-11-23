@@ -29,11 +29,10 @@ DATA = ROOT / "data"        # repoga commit qilinadi
 TZ = dt.timezone(dt.timedelta(hours=5))
 NOW = dt.datetime.now(TZ)
 
-RUN_BUDGET = int(os.environ.get("RUN_BUDGET_SEC", "420"))  # bitta ishga tushish uchun soniya
+RUN_BUDGET = int(os.environ.get("RUN_BUDGET_SEC", "300"))  # bitta ishga tushish uchun soniya
 MAX_SEND = int(os.environ.get("MAX_SEND", "80"))
 MAX_AGE_DAYS = 4          # bundan eski maqolalar yuborilmaydi
 CHECKED_KEEP_DAYS = 21
-WORKERS = 32
 EXCLUDE_HOSTS = {"stat.uz", "siat.stat.uz", "t.me"}
 
 log = logging.getLogger("oav")
@@ -137,22 +136,27 @@ class Run:
         return "https://www.bing.com/news/search?" + up.urlencode({"q": q, "format": "rss", "mkt": mkt,
                                                                  "qft": 'sortbydate="1"'})
 
-    def search_layer(self, pool):
-        jobs = []
+    def google_layer(self):
+        """Google News — ketma-ket, oraliq bilan (aks holda 429 qaytaradi)."""
+        s = self.st("google news")
+        self.google_hits = []
         for it in self.src["search"].get("google_news", []):
-            jobs.append(("google", it["q"], self.google_url(it["q"], it.get("lang", "en"))))
-        for it in self.src["search"].get("bing_news", []):
-            jobs.append(("bing", it["q"], self.bing_url(it["q"], it.get("mkt", "en-US"))))
-        to_check = []
-        futs = {pool.submit(web.fetch, u, 20): (eng, q, u) for eng, q, u in jobs}
-        for f in cf.as_completed(futs):
-            eng, q, u = futs[f]
-            s = self.st(f"{eng} news")
-            try:
-                _, text = f.result()
-            except Exception as e:  # noqa
-                s["err"] += 1
-                self.errors[f"{eng}: {q}"] = str(e)[:150]
+            q = it["q"]
+            url = self.google_url(q, it.get("lang", "en"))
+            text = None
+            for attempt in range(3):
+                try:
+                    _, text = web.fetch(url, 20)
+                    break
+                except Exception as e:  # noqa
+                    if "429" in str(e) and attempt < 2:
+                        time.sleep(15 * (attempt + 1))
+                        continue
+                    s["err"] += 1
+                    self.errors[f"google: {q}"] = str(e)[:150]
+                    break
+            time.sleep(2.0)
+            if text is None:
                 continue
             fp = feedparser.parse(text)
             s["links"] += len(fp.entries)
@@ -163,93 +167,114 @@ class Run:
                     date = dt.datetime(*e.published_parsed[:6], tzinfo=dt.timezone.utc)
                 if self.too_old(date):
                     continue
-                if eng == "google":
-                    src_name = (e.get("source") or {}).get("title") or ""
-                    src_href = (e.get("source") or {}).get("href") or ""
-                    if web.host_of(src_href) in EXCLUDE_HOSTS:
-                        continue
-                    desc = BeautifulText(e.get("summary", ""))
-                    m = self.kw.match(title) or self.kw.match(desc)
-                    if m:
-                        kind, kwd, a, b = m
-                        base = title if self.kw.match(title) else desc
-                        mm = self.kw.match(base)
-                        self.add_found(url=e.get("link"), title=title, source=src_name or "Google News",
-                                       keyword=kwd, kind=kind, snip=snippet(base, mm[2], mm[3]),
-                                       date=date, layer="Google News")
-                    elif self.kw.broad(title):
-                        self.add_found(url=e.get("link"), title=title, source=src_name or "Google News",
-                                       keyword=q, kind="taxminiy", snip=html.escape(title),
-                                       date=date, layer="Google News")
-                else:
-                    link = e.get("link", "")
-                    qs = up.parse_qs(up.urlsplit(link).query)
-                    real = qs.get("url", [link])[0]
-                    if web.host_of(real) in EXCLUDE_HOSTS or self.is_checked(real):
-                        continue
-                    to_check.append({"url": real, "title": title, "date": date,
-                                     "source": web.host_of(real), "layer": "Bing News",
-                                     "desc": BeautifulText(e.get("summary", "")), "query": q})
-        return to_check
+                src_name = (e.get("source") or {}).get("title") or "Google News"
+                src_href = (e.get("source") or {}).get("href") or ""
+                if web.host_of(src_href) in EXCLUDE_HOSTS:
+                    continue
+                desc = BeautifulText(e.get("summary", ""))
+                for base in (title, desc):
+                    mm = self.kw.match(base, title=title)
+                    if mm:
+                        self.google_hits.append(dict(url=e.get("link"), title=title, source=src_name,
+                                                     keyword=mm[1], kind=mm[0],
+                                                     snip=snippet(base, mm[2], mm[3]), date=date,
+                                                     layer="Google News", host=web.host_of(src_href)))
+                        break
 
-    # ------------------------------------------------------------ 2-3-qatlam: saytlar
-    def site_scan(self, site):
-        """Bitta sayt: sahifalar + RSS -> tekshirilmagan maqolalar ro'yxati."""
-        domain = site["domain"]
-        s = self.st(domain)
-        cands = {}   # norm_url -> info
-        feeds_found = set()
-        for path in site.get("pages", ["/"]):
-            url = f"https://{domain}{path}"
+    def bing_layer(self):
+        """Bing News — haqiqiy havola beradi, maqola to'liq matni tekshiriladi."""
+        s = self.st("bing news")
+        out = []
+        for it in self.src["search"].get("bing_news", []):
+            q = it["q"]
             try:
-                final, text = web.fetch(url, 15)
+                _, text = web.fetch(self.bing_url(q, it.get("mkt", "en-US")), 20)
             except Exception as e:  # noqa
                 s["err"] += 1
-                self.errors[url] = str(e)[:150]
-                continue
-            links, feeds = web.extract_links(text, final, domain)
-            feeds_found.update(feeds)
-            for u, anchor in links:
-                cands.setdefault(web.norm_url(u), {"url": u, "title": anchor, "date": None})
-        # RSS
-        cache = self.feeds.get(domain, {})
-        feed_urls = set(cache.get("feeds", [])) | {f for f in feeds_found if "comment" not in f.lower()}
-        if not cache or NOW.timestamp() - cache.get("ts", 0) > 7 * 86400:
-            for p in ("/rss", "/feed", "/rss.xml", "/feed.xml", "/ru/rss", "/uz/rss", "/oz/rss", "/en/rss"):
-                feed_urls.add(f"https://{domain}{p}")
-            probe = True
-        else:
-            probe = False
-        good = []
-        for fu in list(feed_urls)[:14]:
-            try:
-                _, text = web.fetch(fu, 12)
-            except Exception:  # noqa
+                self.errors[f"bing: {q}"] = str(e)[:150]
                 continue
             fp = feedparser.parse(text)
-            if not fp.entries:
-                continue
-            good.append(fu)
-            for e in fp.entries[:60]:
-                link = e.get("link")
-                if not link or not web.same_site(link, domain):
-                    continue
+            s["links"] += len(fp.entries)
+            for e in fp.entries:
+                link = e.get("link", "")
+                qs = up.parse_qs(up.urlsplit(link).query)
+                real = qs.get("url", [link])[0]
                 date = None
                 if e.get("published_parsed"):
                     date = dt.datetime(*e.published_parsed[:6], tzinfo=dt.timezone.utc)
-                if self.too_old(date):
+                if self.too_old(date) or web.host_of(real) in EXCLUDE_HOSTS or self.is_checked(real):
                     continue
-                cands[web.norm_url(link)] = {"url": link, "title": html.unescape(e.get("title", "")),
-                                             "date": date, "desc": BeautifulText(e.get("summary", ""))}
-        if probe or good:
-            self.feeds[domain] = {"feeds": sorted(set(good)), "ts": int(NOW.timestamp()) if probe else cache.get("ts", 0)}
-        s["feeds"] = len(good)
+                out.append({"url": real, "title": html.unescape(e.get("title", "")), "date": date,
+                            "source": web.host_of(real), "layer": "Bing News",
+                            "desc": BeautifulText(e.get("summary", ""))})
+            time.sleep(0.5)
+        return out
+
+    # ------------------------------------------------------------ 2-3-qatlam: saytlar
+    def _try(self, url, timeout=15):
+        try:
+            return web.fetch(url, timeout)
+        except Exception as e:  # noqa
+            return e
+
+    def site_scan(self, site):
+        """Bitta sayt: sahifalar + RSS + (kerak bo'lsa) sitemap -> tekshirilmagan maqolalar."""
+        domain = site["domain"]
+        s = self.st(domain)
+        cands = {}
+        feeds_found = set()
+        cache = self.feeds.get(domain, {})
+        page_urls = [f"https://{domain}{p}" for p in site.get("pages", ["/"])]
+        probe = not cache or NOW.timestamp() - cache.get("ts", 0) > 7 * 86400
+        feed_urls = set(cache.get("feeds", []))
+        if probe:
+            feed_urls |= {f"https://{domain}{p}" for p in
+                          ("/rss", "/feed", "/rss.xml", "/feed.xml", "/ru/rss", "/uz/rss", "/oz/rss")}
+        # sahifalar va RSS bir vaqtda
+        futs = {self.fetch_pool.submit(self._try, u): ("page", u) for u in page_urls}
+        futs.update({self.fetch_pool.submit(self._try, u, 12): ("feed", u) for u in feed_urls})
+        good_feeds = []
+        page_ok = 0
+        for f in cf.as_completed(futs):
+            kind, u = futs[f]
+            res = f.result()
+            if isinstance(res, Exception):
+                if kind == "page":
+                    s["err"] += 1
+                    self.errors[u] = str(res)[:150]
+                continue
+            final, text = res
+            if kind == "page":
+                page_ok += 1
+                links, feeds = web.extract_links(text, final, domain)
+                feeds_found.update(x for x in feeds if "comment" not in x.lower())
+                for lu, anchor in links:
+                    cands.setdefault(web.norm_url(lu), {"url": lu, "title": anchor, "date": None})
+            else:
+                n = self._take_feed(text, domain, cands)
+                if n:
+                    good_feeds.append(u)
+        # sahifada topilgan, lekin hali ko'rilmagan RSS
+        extra = [u for u in feeds_found if u not in feed_urls][:4]
+        for u in extra:
+            res = self._try(u, 12)
+            if not isinstance(res, Exception) and self._take_feed(res[1], domain, cands):
+                good_feeds.append(u)
+        if probe or good_feeds:
+            self.feeds[domain] = {"feeds": sorted(set(good_feeds) | (set(cache.get("feeds", [])) if not probe else set())),
+                                  "ts": int(NOW.timestamp()) if probe else cache.get("ts", 0),
+                                  "sitemaps": cache.get("sitemaps")}
+        # Havolalar kam bo'lsa (JS sayt yoki bloklangan sahifa) — sitemap
+        if len(cands) < 15:
+            self._take_sitemaps(domain, cands)
+        s["feeds"] = len(good_feeds)
         s["links"] = len(cands)
+        if page_ok == 0 and not cands:
+            return []
         new = [c for nu, c in cands.items() if h(nu) not in self.checked]
-        # avval RSS (sanasi bor) va sarlavhasida kalit so'z borlari
         new.sort(key=lambda c: (not self.kw.match(c.get("title", "")), c.get("date") is None))
         lim = self.src.get("max_new_articles_per_site", 40)
-        if self.bootstrap:
+        if self.bootstrap or domain not in self.meta.get("sites_seen", []):
             lim = min(lim, 30)
         out = []
         for c in new[:lim]:
@@ -257,6 +282,67 @@ class Run:
             c["layer"] = "sayt"
             out.append(c)
         return out
+
+    def _take_feed(self, text, domain, cands):
+        fp = feedparser.parse(text)
+        n = 0
+        for e in fp.entries[:80]:
+            link = e.get("link")
+            if not link or not web.same_site(link, domain):
+                continue
+            n += 1
+            date = None
+            if e.get("published_parsed"):
+                date = dt.datetime(*e.published_parsed[:6], tzinfo=dt.timezone.utc)
+            if self.too_old(date):
+                continue
+            cands[web.norm_url(link)] = {"url": link, "title": html.unescape(e.get("title", "")),
+                                         "date": date, "desc": BeautifulText(e.get("summary", ""))}
+        return n
+
+    def _take_sitemaps(self, domain, cands):
+        cache = self.feeds.setdefault(domain, {"feeds": [], "ts": int(NOW.timestamp())})
+        roots = cache.get("sitemaps")
+        if roots is None:
+            roots = []
+            res = self._try(f"https://{domain}/robots.txt", 10)
+            if not isinstance(res, Exception):
+                roots = re.findall(r"(?im)^\s*sitemap:\s*(\S+)", res[1])[:4]
+            if not roots:
+                roots = [f"https://{domain}/sitemap.xml", f"https://{domain}/news-sitemap.xml",
+                         f"https://{domain}/sitemap-news.xml"]
+            cache["sitemaps"] = roots
+        good_roots = []
+        for root in roots:
+            res = self._try(root, 15)
+            if isinstance(res, Exception):
+                continue
+            kind, items = web.parse_sitemap(res[1])
+            if not items:
+                continue
+            good_roots.append(root)
+            if kind == "index":
+                items.sort(key=lambda x: (x[1] is not None, x[1] or NOW, x[0]), reverse=True)
+                children = [x[0] for x in items if "news" in x[0].lower()][:2] or [x[0] for x in items[:2]]
+                for ch in children:
+                    r2 = self._try(ch, 15)
+                    if isinstance(r2, Exception):
+                        continue
+                    k2, urls = web.parse_sitemap(r2[1])
+                    if k2 == "urlset":
+                        self._add_sitemap_urls(urls, domain, cands)
+            else:
+                self._add_sitemap_urls(items, domain, cands)
+        if good_roots:
+            cache["sitemaps"] = good_roots
+
+    def _add_sitemap_urls(self, urls, domain, cands):
+        recent = [u for u in urls if u[1] and (NOW - u[1]).days <= MAX_AGE_DAYS]
+        if not recent:
+            recent = urls[-60:]  # sanasiz sitemap: oxirgilari
+        for loc, lm, title in recent[:150]:
+            if web.same_site(loc, domain) and web.looks_like_article(loc):
+                cands.setdefault(web.norm_url(loc), {"url": loc, "title": title, "date": lm})
 
     def check_article(self, c):
         """Maqolani ochib, to'liq matnda qidiradi."""
@@ -280,7 +366,8 @@ class Run:
         if self.too_old(date):
             return
         full = "\n".join(x for x in (title, art.get("desc") or c.get("desc") or "", art["text"]) if x)
-        m = self.kw.match(full)
+        trusted = c["source"].endswith(".uz") or c["source"] in self.site_domains
+        m = self.kw.match(full, title=title, trusted=trusted)
         if m:
             kind, kwd, a, b = m
             self.add_found(url=art.get("final") or c["url"], title=title, source=c["source"], keyword=kwd,
@@ -291,44 +378,66 @@ class Run:
         log.info("Boshlandi. bootstrap=%s, tekshirilgan=%d, navbatda=%d", self.bootstrap, len(self.checked),
                  len(self.pending))
         sites = [s for s in self.src.get("sites", []) if s.get("enabled", True)]
-        with cf.ThreadPoolExecutor(WORKERS) as pool:
-            fut_search = pool.submit(self.search_layer, pool)
-            site_futs = {pool.submit(self.site_scan, s): s["domain"] for s in sites}
-            articles = []
-            for f in cf.as_completed(site_futs):
-                try:
-                    articles += f.result()
-                except Exception as e:  # noqa
-                    self.errors[site_futs[f]] = "scan: " + str(e)[:150]
+        self.site_domains = {s["domain"] for s in sites}
+        self.fetch_pool = cf.ThreadPoolExecutor(48)
+        site_pool = cf.ThreadPoolExecutor(20)
+        aux_pool = cf.ThreadPoolExecutor(2)
+        fut_google = aux_pool.submit(self.google_layer)
+        fut_bing = aux_pool.submit(self.bing_layer)
+        site_futs = {site_pool.submit(self.site_scan, s): s["domain"] for s in sites}
+        articles = []
+        for f in cf.as_completed(site_futs):
             try:
-                articles += fut_search.result()
+                articles += f.result()
             except Exception as e:  # noqa
-                self.errors["search"] = str(e)[:150]
-            log.info("Saytlar ko'rildi (%.0fs). Tekshiriladigan yangi maqolalar: %d", elapsed(), len(articles))
+                self.errors[site_futs[f]] = "scan: " + repr(e)[:150]
+        log.info("Saytlar ko'rildi (%.0fs). Yangi maqolalar: %d", elapsed(), len(articles))
+        try:
+            articles += fut_bing.result()
+        except Exception as e:  # noqa
+            self.errors["bing"] = repr(e)[:150]
+        log.info("Bing tugadi (%.0fs). Jami tekshiriladigan maqolalar: %d", elapsed(), len(articles))
 
-            art_futs = [pool.submit(self.check_article, c) for c in articles]
-            for f in cf.as_completed(art_futs):
-                c, art, err = f.result()
-                s = self.st(c["source"])
-                if err:
-                    s["err"] += 1
-                    # Bing natijasi ochilmasa ham sarlavhada so'z bo'lsa yuboramiz
-                    if c.get("layer") == "Bing News":
-                        mm = self.kw.match(c["title"] + "\n" + c.get("desc", ""))
-                        if mm:
-                            base = c["title"] + "\n" + c.get("desc", "")
-                            self.add_found(url=c["url"], title=c["title"], source=c["source"], keyword=mm[1],
-                                           kind=mm[0], snip=snippet(base, mm[2], mm[3]), date=c.get("date"),
-                                           layer="Bing News")
-                        self.mark_checked(c["url"])
-                    continue
-                s["checked"] += 1
-                self.handle_article(c, art)
-                if elapsed() > RUN_BUDGET:
-                    log.warning("Vaqt chegarasi — qolgan maqolalar keyingi safar tekshiriladi")
-                    for f2 in art_futs:
-                        f2.cancel()
-                    break
+        art_futs = [self.fetch_pool.submit(self.check_article, c) for c in articles]
+        stopped = False
+        for f in cf.as_completed(art_futs):
+            c, art, err = f.result()
+            s = self.st(c["source"])
+            if err:
+                s["err"] += 1
+                if c.get("layer") == "Bing News":
+                    base = c["title"] + "\n" + c.get("desc", "")
+                    mm = self.kw.match(base, title=c["title"])
+                    if mm:
+                        self.add_found(url=c["url"], title=c["title"], source=c["source"], keyword=mm[1],
+                                       kind=mm[0], snip=snippet(base, mm[2], mm[3]), date=c.get("date"),
+                                       layer="Bing News")
+                    self.mark_checked(c["url"])
+                continue
+            s["checked"] += 1
+            self.handle_article(c, art)
+            if elapsed() > RUN_BUDGET and not stopped:
+                stopped = True
+                log.warning("Vaqt chegarasi — qolgan maqolalar keyingi safar tekshiriladi")
+                for f2 in art_futs:
+                    f2.cancel()
+        try:
+            fut_google.result(timeout=max(5, RUN_BUDGET + 60 - elapsed()))
+        except Exception as e:  # noqa
+            self.errors["google"] = repr(e)[:150]
+        # Google topgan maqola biz to'liq kuzatayotgan saytdan bo'lsa — o'tkazib yuboramiz
+        # (sayt qatlami uni to'liq matn bilan topadi). Sayt ochilmagan bo'lsa — Google'dan olamiz.
+        ok_domains = {d for d in self.site_domains if self.stats.get(d, {}).get("links")}
+        for g in getattr(self, "google_hits", []):
+            host = g.pop("host", "")
+            if host and any(host == d or host.endswith("." + d) or d.endswith("." + host) for d in ok_domains):
+                continue
+            self.add_found(**g)
+        self.fetch_pool.shutdown(wait=False, cancel_futures=True)
+        site_pool.shutdown(wait=False, cancel_futures=True)
+        aux_pool.shutdown(wait=False, cancel_futures=True)
+        seen = set(self.meta.get("sites_seen", [])) | {d for d in self.site_domains if self.stats.get(d, {}).get("links")}
+        self.meta["sites_seen"] = sorted(seen)
         log.info("Tekshiruv tugadi (%.0fs). Yangi topilmalar: %d", elapsed(), len(self.new_found))
         self.persist_found()
         self.send()

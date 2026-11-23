@@ -65,46 +65,34 @@ sites:
   - {domain: anhor.uz, pages: ['/']}
   - {domain: fergana.news, pages: ['/', '/news/']}
   - {domain: kursiv.media, pages: ['/uz/', '/uz/news/']}
-  - {domain: aniq.uz, pages: ['/', '/ru', '/uz']}
+  - {domain: aniq.uz, pages: ['/', '/uz']}
   - {domain: dunyo.info, pages: ['/']}
   - {domain: zamin.uz, pages: ['/', '/ru/']}
   - {domain: yuz.uz, pages: ['/', '/ru']}
   - {domain: bugun.uz, pages: ['/']}
   - {domain: uz.sputniknews.ru, pages: ['/']}
   - {domain: oz.sputniknews.uz, pages: ['/']}
-  - {domain: uzreport.news, pages: ['/', '/ru']}
+  - {domain: uzreport.news, pages: ['/']}
   - {domain: darakchi.uz, pages: ['/']}
   - {domain: hook.report, pages: ['/']}
   - {domain: repost.uz, pages: ['/']}
   - {domain: uz24.uz, pages: ['/']}
-  - {domain: sof.uz, pages: ['/']}
   - {domain: xs.uz, pages: ['/uz', '/ru']}
   - {domain: norma.uz, pages: ['/']}
   - {domain: upl.uz, pages: ['/']}
   - {domain: 12news.uz, pages: ['/']}
   - {domain: tribuna.uz, pages: ['/']}
   - {domain: jahonnews.uz, pages: ['/']}
-  - {domain: yangiuzbekiston.uz, pages: ['/']}
-  - {domain: xalqsozi.uz, pages: ['/']}
   - {domain: pv.uz, pages: ['/']}
   - {domain: nrm.uz, pages: ['/']}
-  - {domain: uzbekistonovozi.uz, pages: ['/']}
   - {domain: ishonch.uz, pages: ['/']}
   - {domain: marifat.uz, pages: ['/']}
   - {domain: mtrk.uz, pages: ['/uz', '/ru']}
-  - {domain: uzreport.tv, pages: ['/']}
   - {domain: infocom.uz, pages: ['/']}
   - {domain: kommersant.uz, pages: ['/']}
   - {domain: economist.uz, pages: ['/']}
   - {domain: biznes-daily.uz, pages: ['/']}
-  - {domain: uzbekistan24.uz, pages: ['/']}
-  - {domain: kanalfoto.uz, pages: ['/']}
-  - {domain: olamnews.uz, pages: ['/']}
-  - {domain: azon.uz, pages: ['/']}
   - {domain: ictnews.uz, pages: ['/']}
-  - {domain: president.uz, pages: ['/uz', '/ru']}
-  - {domain: gov.uz, pages: ['/oz/news']}
-  - {domain: ut.uz, pages: ['/']}
   - {domain: themag.uz, pages: ['/']}
   - {domain: mediabay.uz, pages: ['/']}
   - {domain: platina.uz, pages: ['/']}
@@ -112,7 +100,19 @@ sites:
   - {domain: asiaterra.info, pages: ['/']}
   - {domain: cabar.asia, pages: ['/']}
   - {domain: eurasianet.org, pages: ['/region/uzbekistan']}
-  - {domain: trend.az, pages: ['/centralasia/uzbekistan/']}
+  - {domain: zamon.uz, pages: ['/']}
+  - {domain: uznews.uz, pages: ['/']}
+  - {domain: uz.kursiv.media, pages: ['/', '/ru/']}
+  - {domain: ozodlik.org, pages: ['/']}
+  - {domain: rus.ozodlik.org, pages: ['/']}
+  - {domain: amerikaovozi.com, pages: ['/']}
+  - {domain: bbc.com, pages: ['/uzbek', '/uzbek/topics/c8y949r98pgt']}
+  - {domain: uzmetronom.com, pages: ['/']}
+  - {domain: tashkenttimes.uz, pages: ['/']}
+  - {domain: zarnews.uz, pages: ['/']}
+  - {domain: fergana.agency, pages: ['/news/']}
+  - {domain: timesca.com, pages: ['/category/uzbekistan/']}
+  - {domain: qazinform.com, pages: ['/']}
 
 # Bitta ishga tushishda bir saytdan nechta YANGI maqolaning to'liq matni
 # tekshiriladi (ko'paytirsangiz sekinlashadi).

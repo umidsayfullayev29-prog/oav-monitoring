@@ -1,6 +1,7 @@
 """HTTP so'rovlar, maqola matnini ajratish, havolalarni yig'ish."""
 import re
 import json
+import threading
 import datetime as dt
 import urllib.parse as up
 from email.utils import parsedate_to_datetime
@@ -28,15 +29,34 @@ def session():
     if _session is None:
         s = requests.Session()
         s.headers.update(HEADERS)
-        adapter = requests.adapters.HTTPAdapter(pool_connections=64, pool_maxsize=64, max_retries=1)
+        adapter = requests.adapters.HTTPAdapter(pool_connections=100, pool_maxsize=100, max_retries=0)
         s.mount("http://", adapter)
         s.mount("https://", adapter)
         _session = s
     return _session
 
 
-def fetch(url: str, timeout: int = 15):
+_dom_locks = {}
+_dom_guard = threading.Lock()
+
+
+def _dom_sem(url):
+    host = host_of(url)
+    with _dom_guard:
+        if host not in _dom_locks:
+            _dom_locks[host] = threading.Semaphore(4)  # bitta saytga bir vaqtda 4 tadan ortiq so'rov emas
+        return _dom_locks[host]
+
+
+def fetch(url: str, timeout=(7, 15)):
     """(final_url, text) yoki istisno. SSL xato bo'lsa sertifikatsiz qayta urinadi."""
+    with _dom_sem(url):
+        return _fetch(url, timeout)
+
+
+def _fetch(url, timeout):
+    if isinstance(timeout, (int, float)):
+        timeout = (min(7, timeout), timeout)
     s = session()
     try:
         r = s.get(url, timeout=timeout, allow_redirects=True, stream=True)
@@ -245,3 +265,27 @@ def extract_article(html: str):
     if ld.get("body") and len(ld["body"]) > len(body):
         body = ld["body"]
     return {"title": " ".join((title or "").split()), "desc": desc, "date": date, "text": body}
+
+
+# ---------------------------------------------------------------- sitemap
+def parse_sitemap(xml: str):
+    """(turi, [(loc, lastmod)]) — turi 'index' yoki 'urlset'."""
+    soup = BeautifulSoup(xml, "xml")
+    if soup.find("sitemapindex"):
+        out = []
+        for sm in soup.find_all("sitemap"):
+            loc = sm.find("loc")
+            lm = sm.find("lastmod")
+            if loc:
+                out.append((loc.get_text(strip=True), parse_date(lm.get_text(strip=True)) if lm else None))
+        return "index", out
+    out = []
+    for u in soup.find_all("url"):
+        loc = u.find("loc")
+        if not loc:
+            continue
+        lm = u.find("lastmod") or u.find("publication_date")
+        title = u.find("title")
+        out.append((loc.get_text(strip=True), parse_date(lm.get_text(strip=True)) if lm else None,
+                    title.get_text(strip=True) if title else ""))
+    return "urlset", out
