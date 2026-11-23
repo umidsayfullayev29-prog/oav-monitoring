@@ -98,8 +98,13 @@ class Matcher:
         if not t:
             return None
         found = None
+        nt = norm(title) if title else ""
+        title_foreign = bool(nt and self.foreign and self.foreign.search(nt) and not self.has_marker(nt))
         for p in self.strong:
             for m in p.finditer(t):
+                if title_foreign and not self.has_marker(t[:m.start()]) \
+                        and self._foreign_near(t, m.start(), m.end(), 250, 0):
+                    continue  # maqola boshqa davlat haqida va ibora o'sha davlat idorasini bildiradi
                 if not self._foreign_near(t, m.start(), m.end()):
                     found = ("aniq", m)
                     break
