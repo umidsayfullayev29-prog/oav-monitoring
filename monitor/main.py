@@ -29,7 +29,7 @@ DATA = ROOT / "data"        # repoga commit qilinadi
 TZ = dt.timezone(dt.timedelta(hours=5))
 NOW = dt.datetime.now(TZ)
 
-RUN_BUDGET = int(os.environ.get("RUN_BUDGET_SEC", "300"))  # bitta ishga tushish uchun soniya
+RUN_BUDGET = int(os.environ.get("RUN_BUDGET_SEC", "200"))  # bitta ishga tushish uchun soniya
 MAX_SEND = int(os.environ.get("MAX_SEND", "80"))
 MAX_AGE_DAYS = 4          # bundan eski maqolalar yuborilmaydi
 CHECKED_KEEP_DAYS = 21

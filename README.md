@@ -1,1 +1,63 @@
-# oav-monitoring
+# OAV monitoring — Milliy statistika qo'mitasi
+
+Bu tizim matbuotda qo'mita haqida chiqqan materiallarni avtomatik topadi va har birini Telegram'ga alohida xabar qilib yuboradi.
+
+## Qanday ishlaydi
+
+Tizim GitHub Actions'da o'zi ishga tushadi. Kompyuterni yoqib turish shart emas.
+
+| Toshkent vaqti | Qanchalik tez-tez |
+|---|---|
+| 06:07 – 23:07 | har soatda |
+| 01:07 va 04:07 | kechasi ikki marta |
+
+Kechasi (23:00–07:00) xabarlar **ovozsiz** keladi. Har kuni soat 21:00 dan keyin **kunlik yakun** keladi: nechta chiqish topildi va qaysi manbalarda. Bu xabar tizim ishlab turganini ham bildiradi.
+
+Har bir ishga tushishda manbalar uch qatlamda tekshiriladi:
+
+1. **Qidiruv tizimlari (Google News, Bing News).** 30 dan ortiq so'rov 16 tilda beriladi: o'zbek (lotin, kirill), rus, ingliz, turk, ozarbayjon, qozoq, qirg'iz, tojik, fransuz, nemis, ispan, arab, fors, xitoy, koreys, yapon. Bu qatlam xorijiy OAVni qamrab oladi.
+2. **Saytlarning RSS lentalari.** Tizim ularni o'zi topadi.
+3. **Saytning o'zi.** Bosh sahifa va bo'limlar ochiladi, RSS bo'lmasa sitemap ko'riladi. Har bir yangi maqolaning **to'liq matni** o'qiladi, chunki qo'mita nomi ko'pincha sarlavhada emas, matn ichida bo'ladi.
+
+Bir marta yuborilgan maqola qayta yuborilmaydi. Barcha topilmalar `data/found.jsonl` faylida saqlanadi.
+
+## Telegram xabari
+
+```
+🗞 Sarlavha
+🌐 kun.uz · 24.11 09:15
+🔑 Milliy statistika qo'mitasi
+…matndan parcha, topilgan so'z qalin…
+Maqolani ochish
+```
+
+🗞 — saytning o'zidan topilgan, 🔎 — qidiruv tizimidan topilgan.
+
+## Sozlash (kod yozmasdan)
+
+Hamma sozlamalar `config/` papkasida. GitHub saytida faylni ochib, ✏️ (Edit) tugmasini bosing, o'zgartiring va **Commit changes** ni bosing. Keyingi ishga tushishda o'zgarish kuchga kiradi.
+
+- `config/keywords.yml` — qo'mita nomlari (barcha tillarda).
+  - Tutuq belgisini (') yozmang: `statistika qomita`.
+  - So'z o'zagini yozish yetarli: «qo'mitasi», «qo'mitasining» kabi qo'shimchali shakllarni o'zi topadi.
+  - Umumiy iboralar («statistika ma'lumotlariga ko'ra») hozir o'chiq: `weak: enabled: false`. Yoqsangiz, chiqishlar ko'payadi, lekin ular orasida keraksizlari ham ko'p bo'ladi.
+- `config/sources.yml` — saytlar ro'yxati va qidiruv so'rovlari. Yangi sayt qo'shish uchun bitta qator kifoya:
+  ```
+  - {domain: yangisayt.uz, pages: ['/']}
+  ```
+
+## Qo'lda ishga tushirish
+
+**Actions** → **OAV monitoring** → **Run workflow**.
+
+## Aniqlik qoidalari
+
+- **«Milliy statistika qo'mitasi», «Нацкомстат» kabi aniq nomlar** har doim hisoblanadi. Faqat bitta istisno bor: yonida boshqa davlat nomi tursa, masalan «Tojikiston statistika agentligi», bu boshqa davlat idorasi deb hisoblanadi.
+- **«Statistics committee», «комитет по статистике» kabi umumiy nomlar** faqat yonida yoki sarlavhada O'zbekiston nomi bo'lsa hisoblanadi.
+- **qo'mitaning o'z saytlari** (stat.uz, siat.stat.uz) monitoringga kirmaydi.
+
+## Cheklovlar
+
+- **Xorijdan ochilmaydigan saytlar.** Ba'zi O'zbekiston saytlari GitHub serverlaridan ochilmaydi, masalan xabar.uz, bugun.uz, jahonnews.uz. Bunday saytlardagi chiqishlar Google News orqali ushlanadi. Ularni ham to'g'ridan-to'g'ri tekshirish uchun tizimning bir qismini O'zbekistondagi kompyuterda ishlatish kerak bo'ladi (GitHub «self-hosted runner»).
+- **Bepul daqiqalar.** Yopiq (private) repo uchun GitHub oyiga 2000 daqiqa bepul beradi. Hozirgi jadval shu limitga moslangan. Agar har 15 daqiqada tekshirsin desangiz, repo'ni ochiq (public) qilish kerak, shunda daqiqalar cheklanmaydi. Bot tokeni ochiq repo'da ham yashirin qoladi.
+- **Telegram kanallari** bu tizimga kirmaydi, ularni alohida kuzatasiz.

@@ -37,6 +37,7 @@ jobs:
           restore-keys: oav-state-
 
       - name: Monitoring
+        id: monitor
         env:
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
@@ -59,3 +60,13 @@ jobs:
           git commit -q -m "OAV topilmalar: $(TZ=Asia/Tashkent date '+%d.%m.%Y %H:%M')"
           for i in 1 2 3; do git pull -q --rebase && git push -q && exit 0; sleep 5; done
           exit 1
+
+      - name: Xato haqida Telegram'ga xabar
+        if: failure()
+        env:
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TG_CHAT_ID}" \
+            --data-urlencode "text=⚠️ OAV monitoring ishlamay qoldi. Tafsilot: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" > /dev/null
