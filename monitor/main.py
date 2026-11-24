@@ -275,7 +275,7 @@ class Run:
         new.sort(key=lambda c: (not self.kw.match(c.get("title", "")), c.get("date") is None))
         lim = self.src.get("max_new_articles_per_site", 40)
         if self.bootstrap or domain not in self.meta.get("sites_seen", []):
-            lim = min(lim, 30)
+            lim = min(lim, 15)  # yangi sayt: birinchi marta ozroq, qolgani keyingi safarlarda
         out = []
         for c in new[:lim]:
             c["source"] = domain
@@ -379,8 +379,8 @@ class Run:
                  len(self.pending))
         sites = [s for s in self.src.get("sites", []) if s.get("enabled", True)]
         self.site_domains = {s["domain"] for s in sites}
-        self.fetch_pool = cf.ThreadPoolExecutor(48)
-        site_pool = cf.ThreadPoolExecutor(20)
+        self.fetch_pool = cf.ThreadPoolExecutor(64)
+        site_pool = cf.ThreadPoolExecutor(32)
         aux_pool = cf.ThreadPoolExecutor(2)
         fut_google = aux_pool.submit(self.google_layer)
         fut_bing = aux_pool.submit(self.bing_layer)
