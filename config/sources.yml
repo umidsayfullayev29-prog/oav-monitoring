@@ -301,6 +301,11 @@ sites:
 # Ro'yxat stat.uz «OAV biz haqimizda» PDF jadvallaridan olingan (3+ marta uchragan kanallar).
 # Qo'shish: kanal nomini (@ siz) yozing.
 telegram_channels:
+  # --- Telegram global qidiruvidan topilgan (25.11.2026, 5k+ obunachi)
+  - Qashqadaryo_Xalqi_qarshiliklar_7
+  - Tezkor_Yangiliklar_Xabarlar_uz
+  - Vodiyliklar_bugun1
+  - yanginamangan
   # --- chet eldan ochilmaydigan saytlarning rasmiy Telegram kanallari (filtrsiz)
   - bugunuz
   - biznes_daily
