@@ -198,6 +198,16 @@ foreign_markers:
   - 'mongoliya'
   - 'монголи'
   - 'mongolia'
+  # sport statistika agentliklari ("Opta statistika agentligi" kabi)
+  - 'opta'
+  - 'опта'
+  - 'whoscored'
+  - 'sofascore'
+  - 'transfermarkt'
+  - 'fbref'
+  - 'squawka'
+  - 'gracenote'
+  - 'nielsen'
 
 # "Statistika" so'zining turli tillardagi o'zagi — qidiruv natijalarini
 # taxminiy baholash uchun (sarlavhada O'zbekiston + statistika bo'lsa).

@@ -27,6 +27,8 @@ CASES = [
      "Qirg‘iziston tog‘li qishloqlardagi onalarga katta pul", False),
     ("Türkiye İstatistik Kurumu verilerine göre", "", False),
     ("Lorem ipsum statistika", "", False),
+    ("Opta статистика агентлиги маълумотларига кўра, Ҳусанов", "Гвардиола Ҳусанов ҳақида", False),
+    ("Opta statistika agentligi maʼlumotlariga koʻra", "", False),
 ]
 
 
