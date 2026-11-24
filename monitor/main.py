@@ -370,8 +370,18 @@ class Run:
 
     def telegram_layer(self):
         """Ochiq Telegram kanallari (t.me/s/<kanal> — login shart emas)."""
-        chans = [c.strip().lstrip("@").lower() for c in self.src.get("telegram_channels", []) or []]
+        norm_c = lambda lst: [c.strip().lstrip("@").lower() for c in (lst or [])]
+        chans = norm_c(self.src.get("telegram_channels"))
+        filtered = set(norm_c(self.src.get("telegram_channels_filtered"))) - set(chans)
+        min_subs = int(self.src.get("telegram_channels_min_subscribers", 0) or 0)
+        subs = self.meta.setdefault("tg_subs", {})
+        # filtrlanadigan kanallar: obunachisi ma'lum va kam bo'lsa — o'tkazamiz
+        # (har 50-ishga tushishda soni qayta tekshiriladi)
+        recheck = self.meta.get("run_no", 0) % 50 == 0
+        small = {c for c in filtered if c in subs and subs[c] is not None and subs[c] < min_subs and not recheck}
+        chans += sorted(filtered - small)
         s = self.st("telegram")
+        s["feeds"] = len(chans)
         out = []
         futs = {self.fetch_pool.submit(self._try, f"https://t.me/s/{c}", 15): c for c in chans}
         for f in cf.as_completed(futs):
@@ -380,6 +390,10 @@ class Run:
             if isinstance(res, Exception):
                 s["err"] += 1
                 self.errors[f"t.me/{c}"] = str(res)[:120]
+                continue
+            n_subs = web.tg_subscribers(res[1])
+            subs[c] = n_subs
+            if c in filtered and n_subs is not None and n_subs < min_subs:
                 continue
             posts = web.parse_tg(res[1])
             s["links"] += len(posts)
@@ -684,11 +698,12 @@ def format_message(r):
     lines = [
         f"{LAYER_ICON.get(r.get('layer'), '🗞')} <b>{title}</b>",
         f"🌐 {html.escape(r.get('source') or '')}{lang_tag(r)}{date}",
-        f"🔑 {html.escape(r.get('keyword') or '')}{kind}",
     ]
+    if kind:
+        lines.append("🔎 <i>taxminiy</i>")
     if r.get("layer") == "Telegram":
-        lines = [f"✈️ <b>{html.escape(r.get('source') or '')}</b>{date}",
-                 f"🔑 {html.escape(r.get('keyword') or '')}"]
+        # birinchi qatorda — ochiq havola, tagida post ko'rinishi
+        return "\n".join([html.escape(r["url"]), f"✈️ <b>{html.escape(r.get('source') or '')}</b>{date}"])
     if r.get("snippet") and r.get("kind") != "taxminiy" and r.get("layer") != "Telegram":
         lines.append("")
         lines.append(r["snippet"][:700])

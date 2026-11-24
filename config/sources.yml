@@ -785,7 +785,11 @@ telegram_channels:
   - andijonnomapress
   - bankirkundaligi
   - xxiasr_yangiliklari
-  # --- t.me/statistikaoav kanalida forward qilingan / havolasi berilgan kanallar (2026-may – noyabr)
+
+# t.me/statistikaoav kanalida forward qilingan / havolasi berilgan kanallar (2026-may – noyabr).
+# Bulardan faqat obunachilari min_subscribers dan ko'plari kuzatiladi (soni o'zi aniqlanadi).
+telegram_channels_min_subscribers: 5000
+telegram_channels_filtered:
   - a_huquq_uz
   - abdullayev_shavkatjon
   - abloguz

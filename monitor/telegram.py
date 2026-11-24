@@ -24,8 +24,7 @@ class Telegram:
         }
         if preview_url:
             # Telegram post havolasi ko'rinishi: post matni va rasmi xabar ustida chiqadi
-            payload["link_preview_options"] = {"url": preview_url, "show_above_text": True,
-                                               "prefer_large_media": True}
+            payload["link_preview_options"] = {"url": preview_url, "prefer_large_media": True}
         if reply_to:
             payload["reply_parameters"] = {"message_id": reply_to, "allow_sending_without_reply": True}
         res = self._call("sendMessage", payload)

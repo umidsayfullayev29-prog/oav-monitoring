@@ -260,6 +260,19 @@ def extract_article(html: str):
         ln = sum(len(p.get_text(" ", strip=True)) for p in ps)
         if ln > best_len:
             best, best_len = c, ln
+    # Sahifada bir nechta maqola bo'lsa (masalan, "o'xshash maqolalar" ochiq turgan bo'lsa),
+    # sarlavha (h1) turgan blokni afzal ko'ramiz — matn shu maqolaga tegishli bo'lsin.
+    h1 = soup.find("h1")
+    if h1 is not None and best is not None and h1 not in best.descendants:
+        node = h1.parent
+        for _ in range(6):
+            if node is None:
+                break
+            ln = sum(len(p.get_text(" ", strip=True)) for p in node.find_all("p"))
+            if ln > 300:
+                best, best_len = node, ln
+                break
+            node = node.parent
     if best is not None and best_len > 200:
         body = "\n".join(p.get_text(" ", strip=True) for p in best.find_all(["p", "li", "h2", "h3", "blockquote"]))
     else:
@@ -294,6 +307,19 @@ def parse_sitemap(xml: str):
 
 
 # ---------------------------------------------------------------- Telegram
+def tg_subscribers(html: str):
+    """t.me/s/<kanal> sahifasidan obunachilar soni (topilmasa None)."""
+    m = re.search(r'counter_value">([\d .,\u00a0]+?)\s*([KM]?)</span>\s*<span class="counter_type">(subscribers|members)', html)
+    if not m:
+        return None
+    raw = re.sub(r"[\s\u00a0]", "", m.group(1))
+    if m.group(2):
+        v = float(raw.replace(",", "."))
+    else:
+        v = float(re.sub(r"[.,]", "", raw))
+    return int(v * {"K": 1000, "M": 1000000}.get(m.group(2), 1))
+
+
 def parse_tg(html: str):
     """t.me/s/<kanal> sahifasidagi postlar: [{post, text, date}]."""
     soup = BeautifulSoup(html, "lxml")
