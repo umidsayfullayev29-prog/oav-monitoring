@@ -423,6 +423,9 @@ class Run:
                     out.append(dict(url=url, title=first[:150], source=f"t.me/{c}", keyword=m[1], kind=m[0],
                                     snip=snippet(p["text"], m[2], m[3]), date=p["date"], layer="Telegram",
                                     nums=ver.numbers(p["text"][:1500])))
+        kept = sum(1 for c in filtered if (subs.get(c) or 0) >= min_subs)
+        log.info("Telegram: %d ta kanal; statistikaoav ro'yxatidan %d/%d tasi %d+ obunachili",
+                 len(chans), kept, len(filtered), min_subs)
         return out
 
     def check_article(self, c):
