@@ -553,7 +553,8 @@ class Run:
                 continue
             extra = alts.pop(r["k"], [])
             text = format_message(r)
-            mid = tg.send(text + alt_line(extra), silent=silent)
+            mid = tg.send(text + alt_line(extra), silent=silent,
+                          preview_url=r["url"] if r.get("layer") == "Telegram" else None)
             if mid:
                 sent += 1
                 self.msgs[r["k"]] = {"mid": mid if isinstance(mid, int) and mid > 0 else None, "text": text,
@@ -685,7 +686,10 @@ def format_message(r):
         f"🌐 {html.escape(r.get('source') or '')}{lang_tag(r)}{date}",
         f"🔑 {html.escape(r.get('keyword') or '')}{kind}",
     ]
-    if r.get("snippet") and r.get("kind") != "taxminiy":
+    if r.get("layer") == "Telegram":
+        lines = [f"✈️ <b>{html.escape(r.get('source') or '')}</b>{date}",
+                 f"🔑 {html.escape(r.get('keyword') or '')}"]
+    if r.get("snippet") and r.get("kind") != "taxminiy" and r.get("layer") != "Telegram":
         lines.append("")
         lines.append(r["snippet"][:700])
     lines.append("")
