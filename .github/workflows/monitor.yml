@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: oav-monitor
@@ -69,3 +70,31 @@ jobs:
           curl -s -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
             --data-urlencode "chat_id=${TG_CHAT_ID}" \
             --data-urlencode "text=⚠️ OAV monitoring ishlamay qoldi. Tafsilot: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" > /dev/null
+
+  # Budilnik: GitHub jadvali ishonchsiz, shuning uchun har bir tekshiruv tugagach
+  # keyingisini o'zi rejalashtiradi (kunduzi 30 daqiqadan, kechasi 60 daqiqadan keyin).
+  keyingisi:
+    needs: monitor
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - name: Kutish va keyingi tekshiruvni ishga tushirish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          H=$(TZ=Asia/Tashkent date +%H)
+          if [ "$H" -lt 7 ]; then GAP=3600; else GAP=1800; fi
+          START=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }} --jq '.run_started_at')
+          ELAPSED=$(( $(date +%s) - $(date -d "$START" +%s) ))
+          WAIT=$(( GAP - ELAPSED - 60 ))
+          if [ "$WAIT" -gt 0 ]; then echo "Kutish: $WAIT s"; sleep "$WAIT"; fi
+          # navbatda yoki ishlab turgan boshqa tekshiruv bo'lsa — yangisini qo'shmaymiz
+          BUSY=$(gh api "repos/${{ github.repository }}/actions/workflows/monitor.yml/runs?per_page=5" \
+            --jq '[.workflow_runs[] | select(.id != ${{ github.run_id }}) | select(.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="pending")] | length')
+          if [ "$BUSY" = "0" ]; then
+            gh workflow run monitor.yml --ref main -R ${{ github.repository }}
+            echo "Keyingi tekshiruv ishga tushirildi"
+          else
+            echo "Boshqa tekshiruv bor ($BUSY) — yangisi qo'shilmadi"
+          fi
