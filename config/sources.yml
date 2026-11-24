@@ -302,6 +302,7 @@ sites:
 # Qo'shish: kanal nomini (@ siz) yozing.
 telegram_channels:
   # --- Telegram global qidiruvidan topilgan (25.11.2026, 5k+ obunachi)
+  - ReportersLive
   - UzChess
   - allamjonov_ki
   - qurbonova_a
