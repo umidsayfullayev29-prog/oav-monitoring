@@ -29,7 +29,7 @@ DATA = ROOT / "data"        # repoga commit qilinadi
 TZ = dt.timezone(dt.timedelta(hours=5))
 NOW = dt.datetime.now(TZ)
 
-RUN_BUDGET = int(os.environ.get("RUN_BUDGET_SEC", "170"))  # bitta ishga tushish uchun soniya
+RUN_BUDGET = int(os.environ.get("RUN_BUDGET_SEC", "200"))  # bitta ishga tushish uchun soniya
 MAX_SEND = int(os.environ.get("MAX_SEND", "80"))
 MAX_AGE_DAYS = 4          # bundan eski maqolalar yuborilmaydi
 CHECKED_KEEP_DAYS = 21
@@ -379,6 +379,14 @@ class Run:
                  len(self.pending))
         sites = [s for s in self.src.get("sites", []) if s.get("enabled", True)]
         self.site_domains = {s["domain"] for s in sites}
+        # Ketma-ket 3 marta ochilmagan saytlar har 6-ishga tushishda bir tekshiriladi (vaqtni tejash)
+        fails = self.meta.setdefault("fails", {})
+        run_no = self.meta.get("run_no", 0) + 1
+        self.meta["run_no"] = run_no
+        skipped = [x["domain"] for x in sites if fails.get(x["domain"], 0) >= 3 and run_no % 6]
+        sites = [x for x in sites if x["domain"] not in skipped]
+        if skipped:
+            log.info("Vaqtincha o'tkazildi (ochilmayotgan): %d ta sayt", len(skipped))
         self.fetch_pool = cf.ThreadPoolExecutor(64)
         site_pool = cf.ThreadPoolExecutor(32)
         aux_pool = cf.ThreadPoolExecutor(2)
@@ -401,7 +409,13 @@ class Run:
         art_futs = [self.fetch_pool.submit(self.check_article, c) for c in articles]
         stopped = False
         for f in cf.as_completed(art_futs):
-            c, art, err = f.result()
+            if f.cancelled():
+                continue
+            try:
+                c, art, err = f.result()
+            except Exception as e:  # noqa
+                self.errors["article"] = repr(e)[:150]
+                continue
             s = self.st(c["source"])
             if err:
                 s["err"] += 1
@@ -436,6 +450,12 @@ class Run:
         self.fetch_pool.shutdown(wait=False, cancel_futures=True)
         site_pool.shutdown(wait=False, cancel_futures=True)
         aux_pool.shutdown(wait=False, cancel_futures=True)
+        for x in sites:
+            d = x["domain"]
+            if self.stats.get(d, {}).get("links"):
+                fails.pop(d, None)
+            elif self.stats.get(d, {}).get("err"):
+                fails[d] = fails.get(d, 0) + 1
         seen = set(self.meta.get("sites_seen", [])) | {d for d in self.site_domains if self.stats.get(d, {}).get("links")}
         self.meta["sites_seen"] = sorted(seen)
         log.info("Tekshiruv tugadi (%.0fs). Yangi topilmalar: %d", elapsed(), len(self.new_found))
