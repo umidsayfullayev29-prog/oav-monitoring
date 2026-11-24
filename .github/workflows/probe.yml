@@ -5,6 +5,9 @@ on:
       urls:
         description: URLs
         required: true
+      script:
+        description: script
+        required: false
 jobs:
   probe:
     runs-on: ubuntu-latest
@@ -13,4 +16,5 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: '3.12', cache: pip}
       - run: pip install -q -r requirements.txt
-      - run: python tools/probe.py ${{ inputs.urls }}
+      - run: pip install -q pdfplumber
+      - run: python ${{ inputs.script || 'tools/probe.py' }} ${{ inputs.urls }}
