@@ -81,11 +81,21 @@ def same_story(a: dict, b: dict) -> bool:
     """Bitta nashrdagi bitta xabar (boshqa til yoki sayt + o'z Telegram kanali)."""
     if outlet(a) != outlet(b):
         return False
-    # Telegram posti aynan shu maqolaga havola bersa
-    na_url = {x.rstrip("/") for x in (a.get("links") or [])}
-    nb_url = {x.rstrip("/") for x in (b.get("links") or [])}
-    if a["url"].rstrip("/") in nb_url or b["url"].rstrip("/") in na_url or (na_url & nb_url):
+    # Telegram posti aynan shu nashrning shu maqolasiga havola bersa.
+    # Faqat nashrning o'z saytidagi maqola havolalari hisoblanadi: qo'mita kanaliga, stat.uz'ga
+    # yoki bosh sahifaga havolalar (ko'p xabarda bir xil bo'ladi) hisobga olinmaydi.
+    own = outlet(a)
+    def own_links(r):
+        out = set()
+        for x in (r.get("links") or []) + [r["url"]]:
+            sp = up.urlsplit(x)
+            if site_key(x) == own and len(sp.path.strip("/")) > 8:
+                out.add(site_key(x) + sp.path.rstrip("/"))
+        return out
+    if own_links(a) & own_links(b):
         return True
+    # Bir xil rasm/raqamlar — faqat bitta nashr ichida (boshqa nashrlar qo'mita rasmini
+    # va raqamlarini takrorlagani bilan ular birlashtirilmaydi — yuqorida outlet tekshirildi).
     if a.get("img") and a.get("img") == b.get("img"):
         return True
     na, nb = set(a.get("nums") or []), set(b.get("nums") or [])

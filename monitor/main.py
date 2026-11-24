@@ -468,15 +468,18 @@ class Run:
         """Kanal biror saytning rasmiy kanali bo'lsa — o'sha sayt domeni, aks holda t.me/<kanal>."""
         lk = self.meta.get("tg_links", {}).get(chan, {})
         tot = sum(lk.values())
-        if lk and tot >= 3:
+        if lk and tot >= 5:
             d, n = max(lk.items(), key=lambda x: x[1])
-            if n / tot >= 0.5 and n >= 3:
+            if n / tot >= 0.7:
                 return d
-        # nomidan: kursivuz -> kursiv.media, zamonuz -> zamon.uz (o'zak kamida 4 harf)
+        # nomidan, faqat aniq mos kelsa: kursivuz -> kursiv.media, zamonuz -> zamon.uz
+        # ("daryouz_dunyo_yangiliklar" kabi boshqa kanallar mos kelmaydi)
         name = re.sub(r"[^a-z0-9]", "", chan.lower())
         for d in self.site_domains:
-            stem = re.sub(r"[^a-z0-9]", "", d.split(".")[0] if d.split(".")[0] not in ("uz", "oz", "ru", "en") else d.split(".")[1])
-            if len(stem) >= 4 and name.startswith(stem):
+            parts = d.split(".")
+            stem = parts[1] if parts[0] in ("uz", "oz", "ru", "en") and len(parts) > 2 else parts[0]
+            stem = re.sub(r"[^a-z0-9]", "", stem)
+            if len(stem) >= 4 and re.fullmatch(stem + r"(uz|ru|uzb|en|eng|official|news|media|rasmiy)?", name):
                 return d
         return f"t.me/{chan}"
 
