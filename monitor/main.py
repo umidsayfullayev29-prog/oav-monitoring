@@ -871,7 +871,9 @@ def channel_text(r, url):
     if title:
         lines.append(f"📰 <b>{title}</b>")   # jadval birinchi qalin matnni sarlavha deb oladi
     lines.append(f"🗓 {d.strftime('%d.%m.%Y')}")
-    snip = re.sub(r"</?b>", "", URL_RE.sub("", r.get("snippet") or "")).strip()   # iqtibosda qalin bo'lmasin
+    # topilgan so'z qalin va tagi chizilgan; jadval sarlavhani postdagi birinchi qalin yozuvdan oladi —
+    # sarlavha undan oldin turgani uchun iqtibosdagi qalin so'z sarlavha bo'lib ketmaydi
+    snip = URL_RE.sub("", r.get("snippet") or "").replace("<b>", "<b><u>").replace("</b>", "</u></b>").strip()
     if snip:
         lines.append(f"<blockquote>{snip[:700]}</blockquote>")
     return "\n".join(lines)
