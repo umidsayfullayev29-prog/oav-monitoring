@@ -111,7 +111,8 @@ class Run:
     def mark_checked(self, url):
         self.checked[h(web.norm_url(url))] = int(NOW.timestamp())
 
-    def add_found(self, *, url, title, source, keyword, kind, snip, date, layer, img="", nums=None):
+    def add_found(self, *, url, title, source, keyword, kind, snip, date, layer, img="", nums=None,
+                  links=None, outlet=None):
         nu = web.norm_url(url)
         k = h(nu)
         tk = title_key(title)
@@ -128,10 +129,15 @@ class Run:
             "date": date.astimezone(TZ).isoformat() if date else None,
             "found_at": NOW.isoformat(timespec="seconds"),
             "lang": ver.lang_label(url, title), "img": img or "", "nums": nums or [],
+            "links": [web.norm_url(x) for x in (links or [])][:6],
+            "outlet": outlet or ver.site_key(url),
         }
-        # Shu saytning boshqa tildagi versiyasi oldin topilganmi?
+        if layer == "Telegram":
+            rec["lang"] = "tg"
+        # Shu nashrning boshqa tildagi versiyasi yoki o'z Telegram kanalidagi posti oldin topilganmi?
         if layer not in ("Google News",):
             for other in self.new_found + self.recent:
+                other.setdefault("outlet", ver.site_key(other["url"]))
                 if other["k"] != k and ver.same_story(rec, other):
                     root = other.get("alt_of") or other["k"]
                     rec["alt_of"] = root
@@ -428,6 +434,15 @@ class Run:
                     page = web.parse_tg(r2[1])
                     posts = page + posts
             self.tg_seen_new.add(c)
+            # kanal qaysi saytniki: postlardagi havolalar bo'yicha o'rganamiz
+            lk = self.meta.setdefault("tg_links", {}).setdefault(c, {})
+            for p in posts:
+                for u in p.get("links") or []:
+                    d = ver.site_key(u)
+                    if d and d != "t.me" and "." in d:
+                        lk[d] = lk.get(d, 0) + 1
+            if len(lk) > 30:
+                self.meta["tg_links"][c] = dict(sorted(lk.items(), key=lambda x: -x[1])[:30])
             s["links"] += len(posts)
             for p in posts:
                 if not p["text"] or (p["date"] and (NOW - p["date"]).total_seconds() > 36 * 3600):
@@ -442,11 +457,28 @@ class Run:
                 if m:
                     out.append(dict(url=url, title=first[:150], source=f"t.me/{c}", keyword=m[1], kind=m[0],
                                     snip=snippet(p["text"], m[2], m[3]), date=p["date"], layer="Telegram",
-                                    nums=ver.numbers(p["text"][:1500])))
+                                    nums=ver.numbers(p["text"][:1500]), links=p.get("links") or [],
+                                    outlet=self.tg_outlet(c)))
         kept = sum(1 for c in filtered if (subs.get(c) or 0) >= min_subs)
         log.info("Telegram: %d ta kanal; statistikaoav ro'yxatidan %d/%d tasi %d+ obunachili",
                  len(chans), kept, len(filtered), min_subs)
         return out
+
+    def tg_outlet(self, chan):
+        """Kanal biror saytning rasmiy kanali bo'lsa — o'sha sayt domeni, aks holda t.me/<kanal>."""
+        lk = self.meta.get("tg_links", {}).get(chan, {})
+        tot = sum(lk.values())
+        if lk and tot >= 3:
+            d, n = max(lk.items(), key=lambda x: x[1])
+            if n / tot >= 0.5 and n >= 3:
+                return d
+        # nomidan: kursivuz -> kursiv.media, zamonuz -> zamon.uz (o'zak kamida 4 harf)
+        name = re.sub(r"[^a-z0-9]", "", chan.lower())
+        for d in self.site_domains:
+            stem = re.sub(r"[^a-z0-9]", "", d.split(".")[0] if d.split(".")[0] not in ("uz", "oz", "ru", "en") else d.split(".")[1])
+            if len(stem) >= 4 and name.startswith(stem):
+                return d
+        return f"t.me/{chan}"
 
     def check_article(self, c):
         """Maqolani ochib, to'liq matnda qidiradi."""
@@ -478,7 +510,7 @@ class Run:
             kind, kwd, a, b = m
             self.add_found(url=art.get("final") or c["url"], title=title, source=c["source"], keyword=kwd,
                            kind=kind, snip=snippet(full, a, b), date=date, layer=c["layer"],
-                           img=ver.image_key(art.get("image") or ""),
+                           img=ver.image_key(art.get("image") or ""), links=[art.get("final") or c["url"], c["url"]],
                            nums=ver.numbers(title + " " + (art.get("desc") or "") + " " + art["text"][:1500]))
 
     # ------------------------------------------------------------ run
@@ -726,7 +758,7 @@ def alt_line(extra):
             continue
         seen.add(url)
         parts.append(f'<a href="{html.escape(url, quote=True)}">{html.escape(lg)}</a>')
-    return "\n🌐 Boshqa tillarda: " + " · ".join(parts)
+    return "\n🌐 Boshqa versiyalari: " + " · ".join(parts)
 
 
 LAYER_ICON = {"Google News": "🔎", "Bing News": "🔎", "sayt": "🗞", "Telegram": "✈️"}

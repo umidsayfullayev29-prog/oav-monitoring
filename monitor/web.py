@@ -328,5 +328,10 @@ def parse_tg(html: str):
         tx = m.select_one(".tgme_widget_message_text")
         text = tx.get_text("\n", strip=True) if tx else ""
         t = m.select_one("time[datetime]")
-        out.append({"post": m["data-post"], "text": text, "date": parse_date(t["datetime"]) if t else None})
+        links = [a["href"] for a in (tx.select("a[href]") if tx else []) if a["href"].startswith("http")]
+        prev = m.select_one("a.tgme_widget_message_link_preview[href]")
+        if prev:
+            links.append(prev["href"])
+        out.append({"post": m["data-post"], "text": text, "links": links,
+                    "date": parse_date(t["datetime"]) if t else None})
     return out

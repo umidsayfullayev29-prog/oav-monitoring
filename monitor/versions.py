@@ -72,13 +72,30 @@ def image_key(url: str) -> str:
     return name if len(name) >= 6 else ""
 
 
+def outlet(rec: dict) -> str:
+    """Nashr: sayt domeni yoki (aniqlangan bo'lsa) Telegram kanali egasi bo'lgan sayt."""
+    return rec.get("outlet") or site_key(rec["url"])
+
+
 def same_story(a: dict, b: dict) -> bool:
-    if site_key(a["url"]) != site_key(b["url"]):
+    """Bitta nashrdagi bitta xabar (boshqa til yoki sayt + o'z Telegram kanali)."""
+    if outlet(a) != outlet(b):
         return False
+    # Telegram posti aynan shu maqolaga havola bersa
+    na_url = {x.rstrip("/") for x in (a.get("links") or [])}
+    nb_url = {x.rstrip("/") for x in (b.get("links") or [])}
+    if a["url"].rstrip("/") in nb_url or b["url"].rstrip("/") in na_url or (na_url & nb_url):
+        return True
     if a.get("img") and a.get("img") == b.get("img"):
         return True
     na, nb = set(a.get("nums") or []), set(b.get("nums") or [])
     common = na & nb
-    if len(common) >= 3 and len(common) / max(1, min(len(na), len(nb))) >= 0.6:
+    small = min(len(na), len(nb))
+    if small == 0:
+        return False
+    ratio = len(common) / small
+    if len(common) >= 3 and ratio >= 0.5:
+        return True
+    if len(common) >= 2 and small <= 3 and ratio >= 0.66:
         return True
     return False
