@@ -869,9 +869,9 @@ def channel_text(r, url):
     title = html.escape(URL_RE.sub("", r.get("title") or "").strip())
     lines = [u]
     if title:
-        lines.append(f"📰 {title}")
+        lines.append(f"📰 <b>{title}</b>")   # jadval birinchi qalin matnni sarlavha deb oladi
     lines.append(f"🗓 {d.strftime('%d.%m.%Y')}")
-    snip = URL_RE.sub("", r.get("snippet") or "").strip()
+    snip = re.sub(r"</?b>", "", URL_RE.sub("", r.get("snippet") or "")).strip()   # iqtibosda qalin bo'lmasin
     if snip:
         lines.append(f"<blockquote>{snip[:700]}</blockquote>")
     return "\n".join(lines)
