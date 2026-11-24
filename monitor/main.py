@@ -704,6 +704,7 @@ LAYER_ICON = {"Google News": "🔎", "Bing News": "🔎", "sayt": "🗞", "Teleg
 
 
 def format_message(r):
+    """Birinchi qatorda — ochiq havola, pastda sarlavha, manba, vaqt va matndan parcha."""
     title = html.escape(r.get("title") or "(sarlavhasiz)")
     date = ""
     if r.get("date"):
@@ -712,22 +713,17 @@ def format_message(r):
             date = " · " + d.strftime("%d.%m %H:%M")
         except ValueError:
             pass
-    kind = " · <i>taxminiy</i>" if r.get("kind") == "taxminiy" else ""
-    lines = [
-        f"{LAYER_ICON.get(r.get('layer'), '🗞')} <b>{title}</b>",
-        f"🌐 {html.escape(r.get('source') or '')}{lang_tag(r)}{date}",
-    ]
-    if kind:
-        lines.append("🔎 <i>taxminiy</i>")
+    lines = [html.escape(r["url"])]
     if r.get("layer") == "Telegram":
-        # birinchi qatorda — ochiq havola, tagida post ko'rinishi
-        return "\n".join([html.escape(r["url"]), f"✈️ <b>{html.escape(r.get('source') or '')}</b>{date}"])
-    if r.get("snippet") and r.get("kind") != "taxminiy" and r.get("layer") != "Telegram":
+        lines.append(f"✈️ <b>{html.escape(r.get('source') or '')}</b>{date}")
+        return "\n".join(lines)
+    lines.append(f"{LAYER_ICON.get(r.get('layer'), '🗞')} <b>{title}</b>")
+    lines.append(f"🌐 {html.escape(r.get('source') or '')}{lang_tag(r)}{date}")
+    if r.get("kind") == "taxminiy":
+        lines.append("🔎 <i>taxminiy</i>")
+    elif r.get("snippet"):
         lines.append("")
         lines.append(r["snippet"][:700])
-    lines.append("")
-    label = "Postni ochish" if r.get("layer") == "Telegram" else "Maqolani ochish"
-    lines.append(f'<a href="{html.escape(r["url"], quote=True)}">{label}</a>')
     return "\n".join(lines)
 
 
