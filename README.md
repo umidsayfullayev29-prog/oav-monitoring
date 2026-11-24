@@ -6,7 +6,7 @@ Bu tizim matbuotda qo'mita haqida chiqqan materiallarni avtomatik topadi va har 
 
 Tizim GitHub Actions'da o'zi ishga tushadi. Kompyuterni yoqib turish shart emas.
 
-Har **15 daqiqada** (kecha-kunduz).
+Kunduzi (07:00–24:00) **har 30 daqiqada**, kechasi **soatda bir marta**. Tashqi budilnik (Google Apps Script) har 30 daqiqada ishga tushiradi; ortiqcha chaqiruvlarni tizim o'zi o'tkazib yuboradi.
 
 Kechasi (23:00–07:00) xabarlar **ovozsiz** keladi. Har kuni soat 21:00 dan keyin **kunlik yakun** keladi: nechta chiqish topildi va qaysi manbalarda. Bu xabar tizim ishlab turganini ham bildiradi.
 

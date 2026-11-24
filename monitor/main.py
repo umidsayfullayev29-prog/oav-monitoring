@@ -82,6 +82,8 @@ class Run:
                 if r.get("tk"):
                     self.found_keys.add(r["tk"])
         self.new_found = []
+        self.tg_seen = set(self.meta.get("tg_seen", []))
+        self.tg_seen_new = set()
         self.baseline_done = set(self.meta.get("baseline_done", []))
         self.baseline_new = set()
         self.msgs = load_json(STATE / "msgs.json", {})                 # k -> {mid, text, alts}
@@ -408,6 +410,24 @@ class Run:
             if c in filtered and n_subs is not None and n_subs < min_subs:
                 continue
             posts = web.parse_tg(res[1])
+            # Faol kanal: sahifadagi postlarning hammasi yangi bo'lsa, orada qolib ketganlari bor —
+            # oldingi sahifalarni ham o'qiymiz (ko'pi bilan 4 sahifa, 36 soat ichida).
+            if c in self.tg_seen:
+                page = posts
+                for _ in range(4):
+                    fresh = [p for p in page if p["date"] and (NOW - p["date"]).total_seconds() <= 36 * 3600]
+                    if not page or len(fresh) < len(page) or any(self.is_checked(f"https://t.me/{p['post']}") for p in page):
+                        break
+                    try:
+                        before = min(int(p["post"].rsplit("/", 1)[1]) for p in page)
+                    except ValueError:
+                        break
+                    r2 = self._try(f"https://t.me/s/{c}?before={before}", 15)
+                    if isinstance(r2, Exception):
+                        break
+                    page = web.parse_tg(r2[1])
+                    posts = page + posts
+            self.tg_seen_new.add(c)
             s["links"] += len(posts)
             for p in posts:
                 if not p["text"] or (p["date"] and (NOW - p["date"]).total_seconds() > 36 * 3600):
@@ -463,6 +483,13 @@ class Run:
 
     # ------------------------------------------------------------ run
     def run(self):
+        # Tezlik: kunduzi (07–24) 30 daqiqada, kechasi soatda bir marta.
+        # Budilnik yoki GitHub jadvali tez-tezroq chaqirsa ham, ortiqcha ishga tushish o'tkaziladi.
+        gap = (55 if NOW.hour < 7 else 25) * 60
+        last = self.meta.get("last_run_ts", 0)
+        if os.environ.get("FORCE_RUN") != "1" and NOW.timestamp() - last < gap:
+            log.info("Oxirgi tekshiruvdan %d daqiqa o'tdi — bu safar o'tkazildi.", (NOW.timestamp() - last) // 60)
+            return
         log.info("Boshlandi. bootstrap=%s, tekshirilgan=%d, navbatda=%d", self.bootstrap, len(self.checked),
                  len(self.pending))
         sites = [s for s in self.src.get("sites", []) if s.get("enabled", True)]
@@ -652,6 +679,8 @@ class Run:
         STATE.mkdir(exist_ok=True)
         self.meta["alt_carry"] = getattr(self, "alt_queue_carry", [])
         self.meta["baseline_done"] = sorted(self.baseline_done | self.baseline_new)
+        self.meta["tg_seen"] = sorted(self.tg_seen | self.tg_seen_new)
+        self.meta["last_run_ts"] = int(NOW.timestamp())
         for name, obj in (("checked.json", self.checked), ("feeds.json", self.feeds),
                           ("pending.json", self.pending), ("meta.json", self.meta), ("msgs.json", self.msgs)):
             (STATE / name).write_text(json.dumps(obj, ensure_ascii=False, default=str), "utf-8")
