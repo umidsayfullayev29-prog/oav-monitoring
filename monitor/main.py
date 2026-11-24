@@ -23,6 +23,7 @@ from .textutil import Matcher, snippet, norm
 from . import web
 from .telegram import Telegram
 from . import versions as ver
+from . import gnews
 
 ROOT = Path(__file__).resolve().parent.parent
 STATE = ROOT / "state"      # GitHub Actions cache'da saqlanadi
@@ -35,6 +36,12 @@ MAX_SEND = int(os.environ.get("MAX_SEND", "80"))
 MAX_AGE_DAYS = 4          # bundan eski maqolalar yuborilmaydi
 CHECKED_KEEP_DAYS = 21
 EXCLUDE_HOSTS = {"stat.uz", "siat.stat.uz"}
+# O'zimizning Telegram kanallar — OAV hisoblanmaydi
+EXCLUDE_TG = {"statistikaoav", "statistika_rasmiy", "uzstataxborot", "census_2026", "census_2026_lotin",
+              "uzstat", "uzstat_official", "stat_uz"}
+ARCHIVE_CHAT = os.environ.get("ARCHIVE_CHAT", "").strip()   # topilmalar ketadigan kanal (@statistikaoav)
+MAX_GNEWS_DECODE = 30
+LANG_PRIORITY = {"uz": 0, "ўз": 1, "ru": 2, "en": 3}
 
 log = logging.getLogger("oav")
 T0 = time.monotonic()
@@ -81,6 +88,8 @@ class Run:
                 self.found_keys.add(r.get("k"))
                 if r.get("tk"):
                     self.found_keys.add(r["tk"])
+                for x in r.get("xk") or []:
+                    self.found_keys.add(x)
         self.new_found = []
         self.tg_seen = set(self.meta.get("tg_seen", []))
         self.tg_seen_new = set()
@@ -112,7 +121,7 @@ class Run:
         self.checked[h(web.norm_url(url))] = int(NOW.timestamp())
 
     def add_found(self, *, url, title, source, keyword, kind, snip, date, layer, img="", nums=None,
-                  links=None, outlet=None):
+                  links=None, outlet=None, xk=None):
         nu = web.norm_url(url)
         k = h(nu)
         tk = title_key(title)
@@ -120,7 +129,11 @@ class Run:
             return False
         if web.host_of(url) in EXCLUDE_HOSTS:
             return False
+        if any(x in self.found_keys for x in (xk or [])):
+            return False
         self.found_keys.add(k)
+        for x in xk or []:
+            self.found_keys.add(x)
         if tk:
             self.found_keys.add(tk)
         rec = {
@@ -132,10 +145,12 @@ class Run:
             "links": [web.norm_url(x) for x in (links or [])][:6],
             "outlet": outlet or ver.site_key(url),
         }
+        if xk:
+            rec["xk"] = list(xk)
         if layer == "Telegram":
             rec["lang"] = "tg"
         # Shu nashrning boshqa tildagi versiyasi yoki o'z Telegram kanalidagi posti oldin topilganmi?
-        if layer not in ("Google News",):
+        if "news.google." not in url:
             for other in self.new_found + self.recent:
                 other.setdefault("outlet", ver.site_key(other["url"]))
                 if other["k"] != k and ver.same_story(rec, other):
@@ -400,6 +415,7 @@ class Run:
         recheck = self.meta.get("run_no", 0) % 50 == 0
         small = {c for c in filtered if c in subs and subs[c] is not None and subs[c] < min_subs and not recheck}
         chans += sorted(filtered - small)
+        chans = [c for c in chans if c not in EXCLUDE_TG]
         s = self.st("telegram")
         s["feeds"] = len(chans)
         out = []
@@ -598,11 +614,53 @@ class Run:
         # Google topgan maqola biz to'liq kuzatayotgan saytdan bo'lsa — o'tkazib yuboramiz
         # (sayt qatlami uni to'liq matn bilan topadi). Sayt ochilmagan bo'lsa — Google'dan olamiz.
         ok_domains = {d for d in self.site_domains if self.stats.get(d, {}).get("links")}
+        decoded = 0
         for g in getattr(self, "google_hits", []):
             host = g.pop("host", "")
             if host and any(host == d or host.endswith("." + d) or d.endswith("." + host) for d in ok_domains):
                 continue
-            self.add_found(**g)
+            gk = h(web.norm_url(g["url"]))
+            tk = title_key(g["title"])
+            if gk in self.found_keys or (tk and tk in self.found_keys):
+                continue
+            real = None
+            if decoded < MAX_GNEWS_DECODE and elapsed() < RUN_BUDGET + 120:
+                decoded += 1
+                try:
+                    real = gnews.decode(g["url"], session=web.session())
+                except Exception as e:  # noqa
+                    self.errors["gnews"] = repr(e)[:150]
+                time.sleep(1.0)
+            self.st("google news")["checked"] += 1
+            if not real:
+                self.add_found(**g)
+                continue
+            if web.host_of(real) in EXCLUDE_HOSTS:
+                self.found_keys.add(gk)
+                continue
+            # Asl maqolani ochib, to'liq matnda tekshiramiz; ochilmasa — Google ma'lumoti bilan
+            c = {"url": real, "title": g["title"], "source": g["source"], "layer": "Google News",
+                 "date": g.get("date"), "desc": ""}
+            _, art, err = self.check_article(c)
+            before = len(self.new_found)
+            if art and not err:
+                title = art["title"] or g["title"]
+                full = "\n".join(x for x in (title, art.get("desc") or "", art["text"]) if x)
+                m = self.kw.match(full, title=title, trusted=True)
+                self.mark_checked(real)
+                if m:
+                    self.add_found(url=art.get("final") or real, title=title, source=g["source"], keyword=m[1],
+                                   kind=m[0], snip=snippet(full, m[2], m[3]), date=art["date"] or g.get("date"),
+                                   layer="Google News", img=ver.image_key(art.get("image") or ""),
+                                   links=[art.get("final") or real], xk=[gk] + ([tk] if tk else []),
+                                   nums=ver.numbers(title + " " + art["text"][:1500]))
+            if art and not err:
+                if len(self.new_found) == before:
+                    self.found_keys.add(gk)       # to'liq matnda tasdiqlanmadi — o'tkazamiz
+            else:
+                self.add_found(**dict(g, url=real, xk=[gk]))   # sayt ochilmadi (masalan, chetdan yopiq)
+        if decoded:
+            log.info("Google havolalari ochildi: %d ta urinish", decoded)
         self.fetch_pool.shutdown(wait=False, cancel_futures=True)
         site_pool.shutdown(wait=False, cancel_futures=True)
         aux_pool.shutdown(wait=False, cancel_futures=True)
@@ -615,8 +673,8 @@ class Run:
         seen = set(self.meta.get("sites_seen", [])) | {d for d in self.site_domains if self.stats.get(d, {}).get("links")}
         self.meta["sites_seen"] = sorted(seen)
         log.info("Tekshiruv tugadi (%.0fs). Yangi topilmalar: %d", elapsed(), len(self.new_found))
-        self.persist_found()
         self.send()
+        self.persist_found()
         self.daily_summary()
         self.cleanup_and_save()
         self.write_summary()
@@ -631,57 +689,59 @@ class Run:
 
     # ------------------------------------------------------------ Telegram
     def send(self):
-        tg = Telegram(os.environ.get("TG_BOT_TOKEN"), os.environ.get("TG_CHAT_ID"))
+        """Toza topilmalar — arxiv kanaliga (jadval o'zi ilib oladi), muammolilari — egasiga."""
+        token = os.environ.get("TG_BOT_TOKEN")
+        dm = Telegram(token, os.environ.get("TG_CHAT_ID"))
+        ch = Telegram(token, ARCHIVE_CHAT) if ARCHIVE_CHAT else None
         silent = NOW.hour >= 23 or NOW.hour < 7
-        # boshqa til versiyalarini asosiy xabarga biriktirish
-        alts = {}
-        for root, lang, url in self.alt_queue:
-            alts.setdefault(root, []).append((lang, url))
+        # shu tekshiruvda topilgan boshqa til versiyalari (o'zbekchasiga ustunlik berish uchun)
+        group = {}
+        for r in self.new_found:
+            if r.get("alt_of"):
+                group.setdefault(r["alt_of"], []).append(r)
         self.pending.sort(key=lambda r: r.get("date") or r.get("found_at") or "")
-        sent = 0
+        sent = to_dm = 0
         rest = []
         for r in self.pending:
-            if sent >= MAX_SEND:
+            if sent + to_dm >= MAX_SEND:
                 rest.append(r)
                 continue
-            extra = alts.pop(r["k"], [])
-            text = format_message(r)
-            mid = tg.send(text + alt_line(extra), silent=silent,
-                          preview_url=r["url"] if r.get("layer") == "Telegram" else None)
-            if mid:
-                sent += 1
-                self.msgs[r["k"]] = {"mid": mid if isinstance(mid, int) and mid > 0 else None, "text": text,
-                                     "alts": extra, "ts": int(NOW.timestamp())}
+            cand = r
+            opts = [r] + [a for a in group.get(r["k"], []) if "news.google." not in a["url"]]
+            if len(opts) > 1:
+                cand = min(opts, key=lambda x: (LANG_PRIORITY.get(x.get("lang"), 9), opts.index(x)))
+                if cand is not r:
+                    log.info("O'zbekcha versiya tanlandi: %s o'rniga %s", r["url"], cand["url"])
+                    r["sent_as"] = cand["url"]
+            why = problem_reason(cand)
+            ok = False
+            if not why and ch is not None:
+                url = channel_url(cand, self)
+                if url is None:      # shu maqola oldin yuborilgan (kanal posti sayt havolasiga olib boradi)
+                    continue
+                if url != cand["url"]:
+                    cand.setdefault("xk", []).append(h(web.norm_url(url)))
+                    self.found_keys.add(h(web.norm_url(url)))
+                    cand["sent_as"] = url
+                ok = bool(ch.send(channel_text(cand, url), silent=True, preview_url=url))
+                if ok:
+                    sent += 1
+                    time.sleep(1.5)
+                    continue
+                why = "Kanalga yuborib bo'lmadi (bot admin emasmi?)"
+            text = (f"⚠️ <i>{html.escape(why)}</i>\n" if why else "") + format_message(cand)
+            if dm.send(text, silent=silent, preview_url=cand["url"] if cand.get("layer") == "Telegram" else None):
+                to_dm += 1
             else:
                 r["tries"] = r.get("tries", 0) + 1
                 if r["tries"] < 5:
                     rest.append(r)
-                    if extra:
-                        alts[r["k"]] = extra
-        # asosiy xabar oldin yuborilgan bo'lsa — uni tahrirlab, havola qo'shamiz
-        edited = 0
-        for root, extra in alts.items():
-            m = self.msgs.get(root)
-            pend = next((p for p in rest if p["k"] == root), None)
-            if pend is not None:
-                # asosiy xabar hali navbatda — keyingi safar birga ketadi
-                self.alt_queue_carry = getattr(self, "alt_queue_carry", []) + [(root, l, u) for l, u in extra]
-                continue
-            if m and m.get("mid"):
-                m["alts"] = (m.get("alts") or []) + extra
-                if tg.edit(m["mid"], m["text"] + alt_line(m["alts"])):
-                    edited += 1
-                    continue
-            # tahrirlab bo'lmasa — qisqa alohida xabar
-            first = next((r for r in self.new_found if r.get("alt_of") == root), None)
-            title = html.escape((first or {}).get("title", ""))
-            tg.send(f"🌐 <b>Boshqa tilda ham chiqdi:</b> {title}" + alt_line(extra), silent=True,
-                    reply_to=(m or {}).get("mid"))
         self.pending = rest
         self.sent = sent
-        lim = NOW.timestamp() - 7 * 86400
-        self.msgs = {k: v for k, v in self.msgs.items() if v.get("ts", 0) >= lim}
-        log.info("Telegram: yuborildi %d, tahrirlandi %d, navbatda qoldi %d", sent, edited, len(rest))
+        self.sent_dm = to_dm
+        self.msgs = {}
+        self.alt_queue = []
+        log.info("Telegram: kanalga %d, egasiga %d, navbatda qoldi %d", sent, to_dm, len(rest))
 
     def daily_summary(self):
         today = NOW.strftime("%Y-%m-%d")
@@ -762,6 +822,59 @@ def alt_line(extra):
         seen.add(url)
         parts.append(f'<a href="{html.escape(url, quote=True)}">{html.escape(lg)}</a>')
     return "\n🌐 Boshqa versiyalari: " + " · ".join(parts)
+
+
+URL_RE = re.compile(r"https?://\S+")
+
+
+def problem_reason(r):
+    if "news.google." in (r.get("url") or ""):
+        return "Google havolasi: asl manzil aniqlanmadi — tekshiring"
+    if r.get("kind") == "taxminiy":
+        return "Taxminiy moslik — tekshiring"
+    return None
+
+
+def channel_url(r, run):
+    """Rasmiy Telegram kanali o'z saytidagi maqolaga havola bersa — sayt havolasi yuboriladi."""
+    if r.get("layer") != "Telegram":
+        return r["url"]
+    outlet = r.get("outlet") or ""
+    if not outlet or outlet.startswith("t.me"):
+        return r["url"]
+    for u in r.get("links") or []:
+        if ver.site_key(u) == outlet and web.looks_like_article(u):
+            if h(web.norm_url(u)) in run.found_keys:
+                return None
+            return u
+    return r["url"]
+
+
+def _when(r):
+    for key in ("date", "found_at"):
+        if r.get(key):
+            try:
+                return dt.datetime.fromisoformat(r[key]).astimezone(TZ)
+            except ValueError:
+                pass
+    return NOW
+
+
+def channel_text(r, url):
+    """Arxiv kanali uchun: havola, sarlavha, sana, iqtibos. Postda bitta havola bo'lishi shart."""
+    d = _when(r)
+    u = html.escape(url)
+    if r.get("layer") == "Telegram":
+        return f"{u}\n{d.strftime('%d.%m %H:%M')}"
+    title = html.escape(URL_RE.sub("", r.get("title") or "").strip())
+    lines = [u]
+    if title:
+        lines.append(f"📰 {title}")
+    lines.append(f"🗓 {d.strftime('%d.%m.%Y')}")
+    snip = URL_RE.sub("", r.get("snippet") or "").strip()
+    if snip:
+        lines.append(f"<blockquote>{snip[:700]}</blockquote>")
+    return "\n".join(lines)
 
 
 LAYER_ICON = {"Google News": "🔎", "Bing News": "🔎", "sayt": "🗞", "Telegram": "✈️"}

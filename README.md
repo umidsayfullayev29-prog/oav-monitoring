@@ -1,6 +1,6 @@
 # OAV monitoring — Milliy statistika qo'mitasi
 
-Bu tizim matbuotda qo'mita haqida chiqqan materiallarni avtomatik topadi va har birini Telegram'ga alohida xabar qilib yuboradi.
+Bu tizim matbuotda qo'mita haqida chiqqan materiallarni avtomatik topadi va har birini t.me/statistikaoav arxiv kanaliga alohida post qilib tashlaydi. Kanaldan «OAV monitoring jadvali» (Apps Script) ularni o'zi oladi. Tekshirish kerak bo'lgan topilmalar, xatolar va kunlik yakun bot orqali egasiga keladi.
 
 ## Qanday ishlaydi
 
@@ -18,19 +18,27 @@ Har bir ishga tushishda manbalar uch qatlamda tekshiriladi:
 
 4. **Telegram kanallari.** stat.uz «OAV biz haqimizda» hisobotlari va t.me/statistikaoav kanalida uchragan 900 dan ortiq ochiq kanal t.me/s/ sahifasi orqali kuzatiladi (login shart emas). Oxirgi 36 soatdagi postlar tekshiriladi.
 
-Bir marta yuborilgan maqola qayta yuborilmaydi. Bitta saytdagi maqolaning boshqa tildagi versiyasi (masalan, gazeta.uz o'zbek va rus tilida) yangi xabar bo'lib kelmaydi: avvalgi xabar tagiga «🌐 Boshqa tillarda: ru · uz» havolasi qo'shiladi. Barcha topilmalar `data/found.jsonl` faylida saqlanadi.
+Bir marta yuborilgan maqola qayta yuborilmaydi. Bitta saytdagi maqolaning boshqa tildagi versiyasi kanalga qayta tashlanmaydi. Ikkalasi bitta tekshiruvda topilsa, o'zbekchasi yuboriladi (lotin, keyin kirill, keyin rus). OAVning rasmiy Telegram kanali o'z saytidagi maqolaga havola bersa, kanalga sayt havolasi ketadi. Barcha topilmalar `data/found.jsonl` faylida saqlanadi.
 
-## Telegram xabari
+Google News havolalari (news.google.com/...) asl manzilga aylantiriladi va maqolaning o'zi tekshiriladi. Aylantirib bo'lmasa, topilma kanalga emas, egasiga «tekshiring» belgisi bilan keladi.
 
+## Kanal posti
+
+Sayt:
 ```
-🗞 Sarlavha
-🌐 kun.uz · 24.11 09:15
-🔑 Milliy statistika qo'mitasi
-…matndan parcha, topilgan so'z qalin…
-Maqolani ochish
+https://kun.uz/news/2026/11/24/...
+📰 Sarlavha
+🗓 24.11.2026
+┃ …matndan parcha, topilgan so'z qalin…
 ```
 
-🗞 — saytdan, ✈️ — Telegram kanaldan, 🔎 — qidiruv tizimidan topilgan.
+Telegram kanal:
+```
+https://t.me/militsya_uzbek/88840
+24.11 18:42
+```
+
+Postda faqat bitta havola bo'ladi (jadval har bir havolani alohida qator qiladi). Kanal postlari ovozsiz ketadi va keyin tahrirlanmaydi.
 
 ## Sozlash (kod yozmasdan)
 
