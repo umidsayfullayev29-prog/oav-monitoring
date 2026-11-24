@@ -19,7 +19,7 @@ Har bir ishga tushishda manbalar uch qatlamda tekshiriladi:
 2. **Saytlarning RSS lentalari.** Tizim ularni o'zi topadi.
 3. **Saytning o'zi.** Bosh sahifa va bo'limlar ochiladi, RSS bo'lmasa sitemap ko'riladi. Har bir yangi maqolaning **to'liq matni** o'qiladi, chunki qo'mita nomi ko'pincha sarlavhada emas, matn ichida bo'ladi.
 
-4. **Telegram kanallari.** stat.uz «OAV biz haqimizda» hisobotlarida uchragan 496 ta ochiq kanal t.me/s/ sahifasi orqali kuzatiladi (login shart emas). Oxirgi 36 soatdagi postlar tekshiriladi.
+4. **Telegram kanallari.** stat.uz «OAV biz haqimizda» hisobotlari va t.me/statistikaoav kanalida uchragan 900 dan ortiq ochiq kanal t.me/s/ sahifasi orqali kuzatiladi (login shart emas). Oxirgi 36 soatdagi postlar tekshiriladi.
 
 Bir marta yuborilgan maqola qayta yuborilmaydi. Bitta saytdagi maqolaning boshqa tildagi versiyasi (masalan, gazeta.uz o'zbek va rus tilida) yangi xabar bo'lib kelmaydi: avvalgi xabar tagiga «🌐 Boshqa tillarda: ru · uz» havolasi qo'shiladi. Barcha topilmalar `data/found.jsonl` faylida saqlanadi.
 
