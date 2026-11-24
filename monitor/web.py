@@ -231,6 +231,7 @@ def extract_article(html: str):
         h1 = soup.find("h1")
         title = h1.get_text(" ", strip=True) if h1 else (soup.title.get_text(strip=True) if soup.title else "")
     desc = _meta(soup, "og:description", "description", "twitter:description")
+    image = _meta(soup, "og:image", "twitter:image")
     date = parse_date(_meta(soup, "article:published_time", "datePublished", "pubdate", "date")
                       or (ld.get("date") or ""))
     if not date:
@@ -264,7 +265,7 @@ def extract_article(html: str):
         body = "\n".join(p.get_text(" ", strip=True) for p in soup.find_all("p"))
     if ld.get("body") and len(ld["body"]) > len(body):
         body = ld["body"]
-    return {"title": " ".join((title or "").split()), "desc": desc, "date": date, "text": body}
+    return {"title": " ".join((title or "").split()), "desc": desc, "date": date, "text": body, "image": image}
 
 
 # ---------------------------------------------------------------- sitemap

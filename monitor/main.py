@@ -22,6 +22,7 @@ import feedparser
 from .textutil import Matcher, snippet, norm
 from . import web
 from .telegram import Telegram
+from . import versions as ver
 
 ROOT = Path(__file__).resolve().parent.parent
 STATE = ROOT / "state"      # GitHub Actions cache'da saqlanadi
@@ -81,6 +82,18 @@ class Run:
                 if r.get("tk"):
                     self.found_keys.add(r["tk"])
         self.new_found = []
+        self.msgs = load_json(STATE / "msgs.json", {})                 # k -> {mid, text, alts}
+        self.alt_queue = [tuple(x) for x in self.meta.get("alt_carry", [])]  # (root_k, label, url)
+        self.recent = []
+        if self.found_path.exists():
+            lim = (NOW - dt.timedelta(days=4)).isoformat()
+            for line in self.found_path.read_text("utf-8").splitlines()[-3000:]:
+                try:
+                    r = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if (r.get("found_at") or "") >= lim and (r.get("nums") or r.get("img")):
+                    self.recent.append(r)
         self.stats = {}   # source -> dict
         self.errors = {}
 
@@ -94,7 +107,7 @@ class Run:
     def mark_checked(self, url):
         self.checked[h(web.norm_url(url))] = int(NOW.timestamp())
 
-    def add_found(self, *, url, title, source, keyword, kind, snip, date, layer):
+    def add_found(self, *, url, title, source, keyword, kind, snip, date, layer, img="", nums=None):
         nu = web.norm_url(url)
         k = h(nu)
         tk = title_key(title)
@@ -110,11 +123,22 @@ class Run:
             "keyword": keyword, "kind": kind, "snippet": snip, "layer": layer,
             "date": date.astimezone(TZ).isoformat() if date else None,
             "found_at": NOW.isoformat(timespec="seconds"),
+            "lang": ver.lang_label(url, title), "img": img or "", "nums": nums or [],
         }
+        # Shu saytning boshqa tildagi versiyasi oldin topilganmi?
+        if layer not in ("Google News",):
+            for other in self.new_found + self.recent:
+                if other["k"] != k and ver.same_story(rec, other):
+                    root = other.get("alt_of") or other["k"]
+                    rec["alt_of"] = root
+                    self.alt_queue.append((root, rec["lang"], url))
+                    break
         self.new_found.append(rec)
-        self.pending.append(rec)
+        if not rec.get("alt_of"):
+            self.pending.append(rec)
         self.st(source)["found"] += 1
-        log.info("TOPILDI [%s] %s — %s", source, keyword, title[:90])
+        log.info("TOPILDI [%s] %s — %s%s", source, keyword, title[:90],
+                 "  (boshqa til versiyasi)" if rec.get("alt_of") else "")
         return True
 
     def too_old(self, date):
@@ -371,7 +395,9 @@ class Run:
         if m:
             kind, kwd, a, b = m
             self.add_found(url=art.get("final") or c["url"], title=title, source=c["source"], keyword=kwd,
-                           kind=kind, snip=snippet(full, a, b), date=date, layer=c["layer"])
+                           kind=kind, snip=snippet(full, a, b), date=date, layer=c["layer"],
+                           img=ver.image_key(art.get("image") or ""),
+                           nums=ver.numbers(title + " " + (art.get("desc") or "") + " " + art["text"][:1500]))
 
     # ------------------------------------------------------------ run
     def run(self):
@@ -477,7 +503,10 @@ class Run:
     def send(self):
         tg = Telegram(os.environ.get("TG_BOT_TOKEN"), os.environ.get("TG_CHAT_ID"))
         silent = NOW.hour >= 23 or NOW.hour < 7
-        # yangi topilmalar avval sanasi bo'yicha
+        # boshqa til versiyalarini asosiy xabarga biriktirish
+        alts = {}
+        for root, lang, url in self.alt_queue:
+            alts.setdefault(root, []).append((lang, url))
         self.pending.sort(key=lambda r: r.get("date") or r.get("found_at") or "")
         sent = 0
         rest = []
@@ -485,16 +514,43 @@ class Run:
             if sent >= MAX_SEND:
                 rest.append(r)
                 continue
-            ok = tg.send(format_message(r), silent=silent)
-            if ok:
+            extra = alts.pop(r["k"], [])
+            text = format_message(r)
+            mid = tg.send(text + alt_line(extra), silent=silent)
+            if mid:
                 sent += 1
+                self.msgs[r["k"]] = {"mid": mid if isinstance(mid, int) and mid > 0 else None, "text": text,
+                                     "alts": extra, "ts": int(NOW.timestamp())}
             else:
                 r["tries"] = r.get("tries", 0) + 1
                 if r["tries"] < 5:
                     rest.append(r)
+                    if extra:
+                        alts[r["k"]] = extra
+        # asosiy xabar oldin yuborilgan bo'lsa — uni tahrirlab, havola qo'shamiz
+        edited = 0
+        for root, extra in alts.items():
+            m = self.msgs.get(root)
+            pend = next((p for p in rest if p["k"] == root), None)
+            if pend is not None:
+                # asosiy xabar hali navbatda — keyingi safar birga ketadi
+                self.alt_queue_carry = getattr(self, "alt_queue_carry", []) + [(root, l, u) for l, u in extra]
+                continue
+            if m and m.get("mid"):
+                m["alts"] = (m.get("alts") or []) + extra
+                if tg.edit(m["mid"], m["text"] + alt_line(m["alts"])):
+                    edited += 1
+                    continue
+            # tahrirlab bo'lmasa — qisqa alohida xabar
+            first = next((r for r in self.new_found if r.get("alt_of") == root), None)
+            title = html.escape((first or {}).get("title", ""))
+            tg.send(f"🌐 <b>Boshqa tilda ham chiqdi:</b> {title}" + alt_line(extra), silent=True,
+                    reply_to=(m or {}).get("mid"))
         self.pending = rest
         self.sent = sent
-        log.info("Telegram: yuborildi %d, navbatda qoldi %d", sent, len(rest))
+        lim = NOW.timestamp() - 7 * 86400
+        self.msgs = {k: v for k, v in self.msgs.items() if v.get("ts", 0) >= lim}
+        log.info("Telegram: yuborildi %d, tahrirlandi %d, navbatda qoldi %d", sent, edited, len(rest))
 
     def daily_summary(self):
         today = NOW.strftime("%Y-%m-%d")
@@ -525,8 +581,9 @@ class Run:
         lim = NOW.timestamp() - CHECKED_KEEP_DAYS * 86400
         self.checked = {k: v for k, v in self.checked.items() if v >= lim}
         STATE.mkdir(exist_ok=True)
+        self.meta["alt_carry"] = getattr(self, "alt_queue_carry", [])
         for name, obj in (("checked.json", self.checked), ("feeds.json", self.feeds),
-                          ("pending.json", self.pending), ("meta.json", self.meta)):
+                          ("pending.json", self.pending), ("meta.json", self.meta), ("msgs.json", self.msgs)):
             (STATE / name).write_text(json.dumps(obj, ensure_ascii=False, default=str), "utf-8")
         run = {"time": NOW.isoformat(timespec="seconds"), "seconds": round(elapsed()),
                "bootstrap": self.bootstrap, "new_found": len(self.new_found), "sent": getattr(self, "sent", 0),
@@ -556,6 +613,23 @@ def BeautifulText(s: str) -> str:
     return " ".join(re.sub(r"<[^>]+>", " ", html.unescape(s)).split())
 
 
+def lang_tag(r):
+    lg = r.get("lang")
+    return f" ({lg})" if lg and lg != "?" and r.get("layer") != "Google News" else ""
+
+
+def alt_line(extra):
+    if not extra:
+        return ""
+    seen, parts = set(), []
+    for lg, url in extra:
+        if url in seen:
+            continue
+        seen.add(url)
+        parts.append(f'<a href="{html.escape(url, quote=True)}">{html.escape(lg)}</a>')
+    return "\n🌐 Boshqa tillarda: " + " · ".join(parts)
+
+
 LAYER_ICON = {"Google News": "🔎", "Bing News": "🔎", "sayt": "🗞"}
 
 
@@ -571,7 +645,7 @@ def format_message(r):
     kind = " · <i>taxminiy</i>" if r.get("kind") == "taxminiy" else ""
     lines = [
         f"{LAYER_ICON.get(r.get('layer'), '🗞')} <b>{title}</b>",
-        f"🌐 {html.escape(r.get('source') or '')}{date}",
+        f"🌐 {html.escape(r.get('source') or '')}{lang_tag(r)}{date}",
         f"🔑 {html.escape(r.get('keyword') or '')}{kind}",
     ]
     if r.get("snippet") and r.get("kind") != "taxminiy":
