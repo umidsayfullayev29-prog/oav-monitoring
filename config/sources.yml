@@ -301,6 +301,12 @@ sites:
 # Ro'yxat stat.uz «OAV biz haqimizda» PDF jadvallaridan olingan (3+ marta uchragan kanallar).
 # Qo'shish: kanal nomini (@ siz) yozing.
 telegram_channels:
+  # --- chet eldan ochilmaydigan saytlarning rasmiy Telegram kanallari (filtrsiz)
+  - bugunuz
+  - biznes_daily
+  - cabarasia
+  - infocomuz
+  - surxondaryoliklar
   - everydayuzb
   - kazinformuzbek
   - uzdaily
@@ -1109,7 +1115,6 @@ telegram_channels_filtered:
   - sumunderkurpacha
   - surxondaryo
   - surxondaryolik
-  - surxondaryoliklar
   - tajikistan_news24
   - talabachilikuz
   - talabalar_faoli
