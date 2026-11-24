@@ -37,7 +37,19 @@ search:
     - {q: '乌兹别克斯坦 统计', lang: zh}
     - {q: '우즈베키스탄 통계', lang: ko}
     - {q: 'ウズベキスタン 統計', lang: ja}
+    # ro'yxatga olishlar
+    - {q: '"aholini roʻyxatga olish"', lang: uz}
+    - {q: '"aholini ro''yxatga olish"', lang: uz}
+    - {q: '"biznesni ro''yxatga olish"', lang: uz}
+    - {q: '"аҳолини рўйхатга олиш"', lang: uz}
+    - {q: 'перепись населения Узбекистан', lang: ru}
+    - {q: 'перепись бизнеса Узбекистан', lang: ru}
+    - {q: 'Uzbekistan census', lang: en}
+    - {q: 'Özbekistan nüfus sayımı', lang: tr}
   bing_news:
+    - {q: 'aholini ro''yxatga olish', mkt: en-US}
+    - {q: 'перепись населения Узбекистан', mkt: ru-RU}
+    - {q: 'Uzbekistan census', mkt: en-US}
     - {q: '"statistika qo''mitasi"', mkt: en-US}
     - {q: '"statistika agentligi"', mkt: en-US}
     - {q: 'Нацкомстат', mkt: ru-RU}

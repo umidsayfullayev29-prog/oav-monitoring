@@ -27,6 +27,13 @@ CASES = [
      "Qirg‘iziston tog‘li qishloqlardagi onalarga katta pul", False),
     ("Türkiye İstatistik Kurumu verilerine göre", "", False),
     ("Lorem ipsum statistika", "", False),
+    ("2026-yilda aholini roʻyxatga olish boshlanadi", "", True),
+    ("Biznesni ro'yxatga olish jarayonida tadbirkorlar", "", True),
+    ("Аҳоли ва қишлоқ хўжалигини рўйхатга олиш ўтказилади", "", True),
+    ("Перепись населения в Узбекистане пройдет в 2026 году", "", True),
+    ("Перепись населения в России показала", "Итоги переписи в России", False),
+    ("Uzbekistan will hold its first population census in 2026", "", True),
+    ("Qozog'istonda aholini ro'yxatga olish natijalari e'lon qilindi", "Qozog'iston aholisi", False),
     ("Opta статистика агентлиги маълумотларига кўра, Ҳусанов", "Гвардиола Ҳусанов ҳақида", False),
     ("Opta statistika agentligi maʼlumotlariga koʻra", "", False),
 ]
