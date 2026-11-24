@@ -69,6 +69,9 @@ def image_key(url: str) -> str:
     name = p.rsplit("/", 1)[-1].lower()
     name = re.sub(r"[-_]?\d{2,4}x\d{2,4}", "", name)      # o'lcham qo'shimchasi
     name = re.sub(r"\.(jpe?g|png|webp|gif)$", "", name)
+    # saytning umumiy (har bir maqolada bir xil) rasmi — solishtirishga yaramaydi
+    if re.search(r"(logo|default|placeholder|og[-_]?image|share|no[-_]?image|noimage|cover|banner|favicon)", name):
+        return ""
     return name if len(name) >= 6 else ""
 
 
