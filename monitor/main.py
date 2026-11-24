@@ -34,7 +34,7 @@ RUN_BUDGET = int(os.environ.get("RUN_BUDGET_SEC", "200"))  # bitta ishga tushish
 MAX_SEND = int(os.environ.get("MAX_SEND", "80"))
 MAX_AGE_DAYS = 4          # bundan eski maqolalar yuborilmaydi
 CHECKED_KEEP_DAYS = 21
-EXCLUDE_HOSTS = {"stat.uz", "siat.stat.uz", "t.me"}
+EXCLUDE_HOSTS = {"stat.uz", "siat.stat.uz"}
 
 log = logging.getLogger("oav")
 T0 = time.monotonic()
@@ -368,6 +368,37 @@ class Run:
             if web.same_site(loc, domain) and web.looks_like_article(loc):
                 cands.setdefault(web.norm_url(loc), {"url": loc, "title": title, "date": lm})
 
+    def telegram_layer(self):
+        """Ochiq Telegram kanallari (t.me/s/<kanal> — login shart emas)."""
+        chans = [c.strip().lstrip("@").lower() for c in self.src.get("telegram_channels", []) or []]
+        s = self.st("telegram")
+        out = []
+        futs = {self.fetch_pool.submit(self._try, f"https://t.me/s/{c}", 15): c for c in chans}
+        for f in cf.as_completed(futs):
+            c = futs[f]
+            res = f.result()
+            if isinstance(res, Exception):
+                s["err"] += 1
+                self.errors[f"t.me/{c}"] = str(res)[:120]
+                continue
+            posts = web.parse_tg(res[1])
+            s["links"] += len(posts)
+            for p in posts:
+                if not p["text"] or (p["date"] and (NOW - p["date"]).total_seconds() > 36 * 3600):
+                    continue  # Telegram'da faqat oxirgi 36 soat
+                url = f"https://t.me/{p['post']}"
+                if self.is_checked(url):
+                    continue
+                self.mark_checked(url)
+                s["checked"] += 1
+                first = p["text"].split("\n", 1)[0]
+                m = self.kw.match(p["text"], title=first, trusted=True)
+                if m:
+                    out.append(dict(url=url, title=first[:150], source=f"t.me/{c}", keyword=m[1], kind=m[0],
+                                    snip=snippet(p["text"], m[2], m[3]), date=p["date"], layer="Telegram",
+                                    nums=ver.numbers(p["text"][:1500])))
+        return out
+
     def check_article(self, c):
         """Maqolani ochib, to'liq matnda qidiradi."""
         try:
@@ -418,6 +449,7 @@ class Run:
         aux_pool = cf.ThreadPoolExecutor(2)
         fut_google = aux_pool.submit(self.google_layer)
         fut_bing = aux_pool.submit(self.bing_layer)
+        fut_tg = site_pool.submit(self.telegram_layer)
         site_futs = {site_pool.submit(self.site_scan, s): s["domain"] for s in sites}
         articles = []
         for f in cf.as_completed(site_futs):
@@ -465,6 +497,11 @@ class Run:
             fut_google.result(timeout=max(5, RUN_BUDGET + 60 - elapsed()))
         except Exception as e:  # noqa
             self.errors["google"] = repr(e)[:150]
+        try:
+            for t in fut_tg.result(timeout=60):
+                self.add_found(**t)
+        except Exception as e:  # noqa
+            self.errors["telegram"] = repr(e)[:150]
         # Google topgan maqola biz to'liq kuzatayotgan saytdan bo'lsa — o'tkazib yuboramiz
         # (sayt qatlami uni to'liq matn bilan topadi). Sayt ochilmagan bo'lsa — Google'dan olamiz.
         ok_domains = {d for d in self.site_domains if self.stats.get(d, {}).get("links")}
@@ -630,7 +667,7 @@ def alt_line(extra):
     return "\n🌐 Boshqa tillarda: " + " · ".join(parts)
 
 
-LAYER_ICON = {"Google News": "🔎", "Bing News": "🔎", "sayt": "🗞"}
+LAYER_ICON = {"Google News": "🔎", "Bing News": "🔎", "sayt": "🗞", "Telegram": "✈️"}
 
 
 def format_message(r):
@@ -652,7 +689,8 @@ def format_message(r):
         lines.append("")
         lines.append(r["snippet"][:700])
     lines.append("")
-    lines.append(f'<a href="{html.escape(r["url"], quote=True)}">Maqolani ochish</a>')
+    label = "Postni ochish" if r.get("layer") == "Telegram" else "Maqolani ochish"
+    lines.append(f'<a href="{html.escape(r["url"], quote=True)}">{label}</a>')
     return "\n".join(lines)
 
 

@@ -44,7 +44,8 @@ def _dom_sem(url):
     host = host_of(url)
     with _dom_guard:
         if host not in _dom_locks:
-            _dom_locks[host] = threading.Semaphore(4)  # bitta saytga bir vaqtda 4 tadan ortiq so'rov emas
+            # bitta saytga bir vaqtda 4 tadan ortiq so'rov emas (t.me — 8)
+            _dom_locks[host] = threading.Semaphore(8 if host == "t.me" else 4)
         return _dom_locks[host]
 
 
@@ -290,3 +291,16 @@ def parse_sitemap(xml: str):
         out.append((loc.get_text(strip=True), parse_date(lm.get_text(strip=True)) if lm else None,
                     title.get_text(strip=True) if title else ""))
     return "urlset", out
+
+
+# ---------------------------------------------------------------- Telegram
+def parse_tg(html: str):
+    """t.me/s/<kanal> sahifasidagi postlar: [{post, text, date}]."""
+    soup = BeautifulSoup(html, "lxml")
+    out = []
+    for m in soup.select("div.tgme_widget_message[data-post]"):
+        tx = m.select_one(".tgme_widget_message_text")
+        text = tx.get_text("\n", strip=True) if tx else ""
+        t = m.select_one("time[datetime]")
+        out.append({"post": m["data-post"], "text": text, "date": parse_date(t["datetime"]) if t else None})
+    return out

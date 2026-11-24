@@ -12,9 +12,12 @@ NUM = re.compile(r"\d+(?:[.,]\d+)?")
 
 def site_key(url: str) -> str:
     """Til subdomenisiz asosiy domen: ru.sputniknews.uz -> sputniknews.uz."""
-    h = (up.urlsplit(url).hostname or "").lower()
+    sp = up.urlsplit(url)
+    h = (sp.hostname or "").lower()
     if h.startswith("www."):
         h = h[4:]
+    if h == "t.me":
+        return "t.me/" + (sp.path.strip("/").split("/") or [""])[0].lower()
     parts = h.split(".")
     if len(parts) > 2 and parts[0] in ("uz", "oz", "ru", "en", "kr", "m", "rus", "eng", "uzb", "cyr", "lat"):
         h = ".".join(parts[1:])
