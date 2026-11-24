@@ -82,6 +82,8 @@ class Run:
                 if r.get("tk"):
                     self.found_keys.add(r["tk"])
         self.new_found = []
+        self.baseline_done = set(self.meta.get("baseline_done", []))
+        self.baseline_new = set()
         self.msgs = load_json(STATE / "msgs.json", {})                 # k -> {mid, text, alts}
         self.alt_queue = [tuple(x) for x in self.meta.get("alt_carry", [])]  # (root_k, label, url)
         self.recent = []
@@ -295,15 +297,25 @@ class Run:
         s["links"] = len(cands)
         if page_ok == 0 and not cands:
             return []
-        new = [c for nu, c in cands.items() if h(nu) not in self.checked]
+        new = [(nu, c) for nu, c in cands.items() if h(nu) not in self.checked]
+        baseline = domain not in self.baseline_done
+        if baseline:
+            # Saytni birinchi ko'rish: sanasi noma'lum havolalar (bosh sahifadagi eski "mashhur"
+            # maqolalar, sitemap'dagi eski sahifalar) tarix deb belgilanadi va yuborilmaydi.
+            # Keyin paydo bo'lgan har bir yangi havola — yangi maqola.
+            for nu, c in new:
+                if c.get("date") is None:
+                    self.checked[h(nu)] = int(NOW.timestamp())
+            new = [(nu, c) for nu, c in new if c.get("date") is not None]
+            self.baseline_new.add(domain)
+        new = [c for nu, c in new]
         new.sort(key=lambda c: (not self.kw.match(c.get("title", "")), c.get("date") is None))
         lim = self.src.get("max_new_articles_per_site", 40)
-        if self.bootstrap or domain not in self.meta.get("sites_seen", []):
-            lim = min(lim, 15)  # yangi sayt: birinchi marta ozroq, qolgani keyingi safarlarda
         out = []
         for c in new[:lim]:
             c["source"] = domain
             c["layer"] = "sayt"
+            c["baseline"] = baseline
             out.append(c)
         return out
 
@@ -433,6 +445,8 @@ class Run:
         title = art["title"] or c.get("title") or ""
         date = art["date"] or c.get("date")
         if self.too_old(date):
+            return
+        if date is None and c.get("baseline"):
             return
         full = "\n".join(x for x in (title, art.get("desc") or c.get("desc") or "", art["text"]) if x)
         trusted = c["source"].endswith(".uz") or c["source"] in self.site_domains
@@ -634,6 +648,7 @@ class Run:
         self.checked = {k: v for k, v in self.checked.items() if v >= lim}
         STATE.mkdir(exist_ok=True)
         self.meta["alt_carry"] = getattr(self, "alt_queue_carry", [])
+        self.meta["baseline_done"] = sorted(self.baseline_done | self.baseline_new)
         for name, obj in (("checked.json", self.checked), ("feeds.json", self.feeds),
                           ("pending.json", self.pending), ("meta.json", self.meta), ("msgs.json", self.msgs)):
             (STATE / name).write_text(json.dumps(obj, ensure_ascii=False, default=str), "utf-8")
