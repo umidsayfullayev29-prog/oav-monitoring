@@ -4,13 +4,13 @@ sys.path.insert(0, '.')
 from monitor import web
 def tg(d):  # translate.goog proxy
     h = d.replace('-', '--').replace('.', '-')
-    return f"https://{h}.translate.goog/?_x_tr_sl=uz&_x_tr_tl=uz&_x_tr_hl=uz&_x_tr_pto=wapp"
+    return f"https://{h}.translate.goog/?_x_tr_sl=auto&_x_tr_tl=en&_x_tr_hl=en&_x_tr_pto=wapp"
 def check(d):
     out = []
-    for name, url in (("direct", f"https://{d}/"), ("http", f"http://{d}/"), ("gtrans", tg(d)), ("jina", f"https://r.jina.ai/https://{d}/")):
+    for name, url in (("direct", f"https://{d}/"), ("http", f"http://{d}/"), ("gtrans", tg(d)), ("gt2", f"https://translate.google.com/translate?sl=auto&tl=en&u=https://{d}/")):
         try:
             final, html = web._fetch(url, (8, 20))
-            links = len(re.findall(r'href=', html)) if name != "jina" else len(re.findall(r'\]\(https?://', html))
+            links = len(re.findall(r'href=', html)) 
             out.append(f"{name}=OK({len(html)//1000}k,{links})")
         except Exception as e:
             out.append(f"{name}=ERR({type(e).__name__}:{str(e)[:40]})")
