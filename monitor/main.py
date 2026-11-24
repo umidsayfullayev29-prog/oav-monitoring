@@ -34,13 +34,20 @@ NOW = dt.datetime.now(TZ)
 RUN_BUDGET = int(os.environ.get("RUN_BUDGET_SEC", "200"))  # bitta ishga tushish uchun soniya
 MAX_SEND = int(os.environ.get("MAX_SEND", "80"))
 MAX_AGE_DAYS = 4          # bundan eski maqolalar yuborilmaydi
+# Qayta ko'rib chiqish rejimi: BACKFILL_SINCE=2026-11-01 — shu sanadan beri hamma manbalar qayta tekshiriladi
+BACKFILL_SINCE = os.environ.get("BACKFILL_SINCE", "").strip()
+BF_SINCE = dt.datetime.fromisoformat(BACKFILL_SINCE).replace(tzinfo=TZ) if BACKFILL_SINCE else None
+CHANNEL_START = "2026-11-24T21:25"   # shu vaqtdan beri topilmalar kanalga ketmoqda
+if BF_SINCE:
+    MAX_AGE_DAYS = (NOW - BF_SINCE).days + 1
+    STATE = ROOT / "state_bf"
 CHECKED_KEEP_DAYS = 21
 EXCLUDE_HOSTS = {"stat.uz", "siat.stat.uz"}
 # O'zimizning Telegram kanallar — OAV hisoblanmaydi
 EXCLUDE_TG = {"statistikaoav", "statistika_rasmiy", "uzstataxborot", "census_2026", "census_2026_lotin",
               "uzstat", "uzstat_official", "stat_uz"}
 ARCHIVE_CHAT = os.environ.get("ARCHIVE_CHAT", "").strip()   # topilmalar ketadigan kanal (@statistikaoav)
-MAX_GNEWS_DECODE = 30
+MAX_GNEWS_DECODE = 600 if BF_SINCE else 30
 LANG_PRIORITY = {"uz": 0, "ўз": 1, "ru": 2, "en": 3}
 
 log = logging.getLogger("oav")
@@ -78,18 +85,32 @@ class Run:
         self.meta = load_json(STATE / "meta.json", {})
         self.bootstrap = len(self.checked) == 0
         self.found_keys = set()
-        self.found_path = DATA / "found.jsonl"
-        if self.found_path.exists():
-            for line in self.found_path.read_text("utf-8").splitlines():
+        self.found_path = DATA / ("backfill.jsonl" if BF_SINCE else "found.jsonl")
+        self.recent = []
+        lim4 = (NOW - dt.timedelta(days=4)).isoformat()
+        for fname in ("found.jsonl", "backfill.jsonl"):
+            fp = DATA / fname
+            if not fp.exists():
+                continue
+            for line in fp.read_text("utf-8").splitlines():
                 try:
                     r = json.loads(line)
                 except json.JSONDecodeError:
                     continue
+                if BF_SINCE and fname == "found.jsonl":
+                    # qayta ko'rishda: faqat kanalga allaqachon ketganlar "bor" hisoblanadi
+                    fa = r.get("found_at") or ""
+                    if fa < CHANNEL_START or r.get("kind") == "taxminiy" or "news.google." in (r.get("url") or ""):
+                        continue
+                    if r.get("nums") or r.get("img") or r.get("links"):
+                        self.recent.append(r)
                 self.found_keys.add(r.get("k"))
                 if r.get("tk"):
                     self.found_keys.add(r["tk"])
                 for x in r.get("xk") or []:
                     self.found_keys.add(x)
+                if not BF_SINCE and (r.get("found_at") or "") >= lim4 and (r.get("nums") or r.get("img")):
+                    self.recent.append(r)
         self.new_found = []
         self.tg_seen = set(self.meta.get("tg_seen", []))
         self.tg_seen_new = set()
@@ -97,16 +118,6 @@ class Run:
         self.baseline_new = set()
         self.msgs = load_json(STATE / "msgs.json", {})                 # k -> {mid, text, alts}
         self.alt_queue = [tuple(x) for x in self.meta.get("alt_carry", [])]  # (root_k, label, url)
-        self.recent = []
-        if self.found_path.exists():
-            lim = (NOW - dt.timedelta(days=4)).isoformat()
-            for line in self.found_path.read_text("utf-8").splitlines()[-3000:]:
-                try:
-                    r = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if (r.get("found_at") or "") >= lim and (r.get("nums") or r.get("img")):
-                    self.recent.append(r)
         self.stats = {}   # source -> dict
         self.errors = {}
 
@@ -167,10 +178,12 @@ class Run:
         return True
 
     def too_old(self, date):
+        if BF_SINCE and date:
+            return date < BF_SINCE
         return bool(date) and (NOW - date).days > MAX_AGE_DAYS
 
     # ------------------------------------------------------------ 1-qatlam: qidiruv
-    def google_url(self, q, lang):
+    def google_url(self, q, lang, window=None):
         regions = {"uz": ("uz", "UZ", "UZ:uz"), "ru": ("ru", "RU", "RU:ru"), "en": ("en-US", "US", "US:en"),
                    "tr": ("tr", "TR", "TR:tr"), "az": ("az", "AZ", "AZ:az"), "kk": ("kk", "KZ", "KZ:kk"),
                    "ky": ("ky", "KG", "KG:ky"), "tg": ("tg", "TJ", "TJ:tg"), "fr": ("fr", "FR", "FR:fr"),
@@ -179,7 +192,8 @@ class Run:
                    "ja": ("ja", "JP", "JP:ja")}
         hl, gl, ceid = regions.get(lang, ("en-US", "US", "US:en"))
         return ("https://news.google.com/rss/search?" +
-                up.urlencode({"q": f"{q} when:3d", "hl": hl, "gl": gl, "ceid": ceid}))
+                up.urlencode({"q": f"{q} after:{window[0]} before:{window[1]}" if window else f"{q} when:3d",
+                              "hl": hl, "gl": gl, "ceid": ceid}))
 
     def bing_url(self, q, mkt):
         return "https://www.bing.com/news/search?" + up.urlencode({"q": q, "format": "rss", "mkt": mkt,
@@ -189,9 +203,17 @@ class Run:
         """Google News — ketma-ket, oraliq bilan (aks holda 429 qaytaradi)."""
         s = self.st("google news")
         self.google_hits = []
-        for it in self.src["search"].get("google_news", []):
+        windows = [None]
+        if BF_SINCE:
+            windows, a = [], BF_SINCE.date()
+            while a <= NOW.date():
+                b = a + dt.timedelta(days=4)
+                windows.append((a.isoformat(), b.isoformat()))
+                a = b - dt.timedelta(days=1)
+        jobs = [(it, w) for it in self.src["search"].get("google_news", []) for w in windows]
+        for it, w in jobs:
             q = it["q"]
-            url = self.google_url(q, it.get("lang", "en"))
+            url = self.google_url(q, it.get("lang", "en"), w)
             text = None
             for attempt in range(3):
                 try:
@@ -314,14 +336,14 @@ class Run:
                                   "ts": int(NOW.timestamp()) if probe else cache.get("ts", 0),
                                   "sitemaps": cache.get("sitemaps")}
         # Havolalar kam bo'lsa (JS sayt yoki bloklangan sahifa) — sitemap
-        if len(cands) < 15:
+        if len(cands) < 15 or BF_SINCE:
             self._take_sitemaps(domain, cands)
         s["feeds"] = len(good_feeds)
         s["links"] = len(cands)
         if page_ok == 0 and not cands:
             return []
         new = [(nu, c) for nu, c in cands.items() if h(nu) not in self.checked]
-        baseline = domain not in self.baseline_done
+        baseline = domain not in self.baseline_done and not BF_SINCE
         if baseline:
             # Saytni birinchi ko'rish: sanasi noma'lum havolalar (bosh sahifadagi eski "mashhur"
             # maqolalar, sitemap'dagi eski sahifalar) tarix deb belgilanadi va yuborilmaydi.
@@ -333,7 +355,7 @@ class Run:
             self.baseline_new.add(domain)
         new = [c for nu, c in new]
         new.sort(key=lambda c: (not self.kw.match(c.get("title", "")), c.get("date") is None))
-        lim = self.src.get("max_new_articles_per_site", 40)
+        lim = 4000 if BF_SINCE else self.src.get("max_new_articles_per_site", 40)
         out = []
         for c in new[:lim]:
             c["source"] = domain
@@ -382,7 +404,8 @@ class Run:
             good_roots.append(root)
             if kind == "index":
                 items.sort(key=lambda x: (x[1] is not None, x[1] or NOW, x[0]), reverse=True)
-                children = [x[0] for x in items if "news" in x[0].lower()][:2] or [x[0] for x in items[:2]]
+                nch = 6 if BF_SINCE else 2
+                children = [x[0] for x in items if "news" in x[0].lower()][:nch] or [x[0] for x in items[:nch]]
                 for ch in children:
                     r2 = self._try(ch, 15)
                     if isinstance(r2, Exception):
@@ -399,7 +422,7 @@ class Run:
         recent = [u for u in urls if u[1] and (NOW - u[1]).days <= MAX_AGE_DAYS]
         if not recent:
             recent = urls[-60:]  # sanasiz sitemap: oxirgilari
-        for loc, lm, title in recent[:150]:
+        for loc, lm, title in recent[:(5000 if BF_SINCE else 150)]:
             if web.same_site(loc, domain) and web.looks_like_article(loc):
                 cands.setdefault(web.norm_url(loc), {"url": loc, "title": title, "date": lm})
 
@@ -434,10 +457,11 @@ class Run:
             posts = web.parse_tg(res[1])
             # Faol kanal: sahifadagi postlarning hammasi yangi bo'lsa, orada qolib ketganlari bor —
             # oldingi sahifalarni ham o'qiymiz (ko'pi bilan 4 sahifa, 36 soat ichida).
-            if c in self.tg_seen:
+            win = (NOW - BF_SINCE).total_seconds() if BF_SINCE else 36 * 3600
+            if c in self.tg_seen or BF_SINCE:
                 page = posts
-                for _ in range(4):
-                    fresh = [p for p in page if p["date"] and (NOW - p["date"]).total_seconds() <= 36 * 3600]
+                for _ in range(400 if BF_SINCE else 4):
+                    fresh = [p for p in page if p["date"] and (NOW - p["date"]).total_seconds() <= win]
                     if not page or len(fresh) < len(page) or any(self.is_checked(f"https://t.me/{p['post']}") for p in page):
                         break
                     try:
@@ -461,8 +485,8 @@ class Run:
                 self.meta["tg_links"][c] = dict(sorted(lk.items(), key=lambda x: -x[1])[:30])
             s["links"] += len(posts)
             for p in posts:
-                if not p["text"] or (p["date"] and (NOW - p["date"]).total_seconds() > 36 * 3600):
-                    continue  # Telegram'da faqat oxirgi 36 soat
+                if not p["text"] or (p["date"] and (NOW - p["date"]).total_seconds() > win):
+                    continue  # Telegram'da faqat oxirgi 36 soat (qayta ko'rishda — boshlang'ich sanadan)
                 url = f"https://t.me/{p['post']}"
                 if self.is_checked(url):
                     continue
@@ -538,7 +562,7 @@ class Run:
         # Budilnik yoki GitHub jadvali tez-tezroq chaqirsa ham, ortiqcha ishga tushish o'tkaziladi.
         gap = (55 if NOW.hour < 7 else 25) * 60
         last = self.meta.get("last_run_ts", 0)
-        if os.environ.get("FORCE_RUN") != "1" and NOW.timestamp() - last < gap:
+        if not BF_SINCE and os.environ.get("FORCE_RUN") != "1" and NOW.timestamp() - last < gap:
             log.info("Oxirgi tekshiruvdan %d daqiqa o'tdi — bu safar o'tkazildi.", (NOW.timestamp() - last) // 60)
             return
         log.info("Boshlandi. bootstrap=%s, tekshirilgan=%d, navbatda=%d", self.bootstrap, len(self.checked),
@@ -549,7 +573,7 @@ class Run:
         fails = self.meta.setdefault("fails", {})
         run_no = self.meta.get("run_no", 0) + 1
         self.meta["run_no"] = run_no
-        skipped = [x["domain"] for x in sites if fails.get(x["domain"], 0) >= 3 and run_no % 6]
+        skipped = [] if BF_SINCE else [x["domain"] for x in sites if fails.get(x["domain"], 0) >= 3 and run_no % 6]
         sites = [x for x in sites if x["domain"] not in skipped]
         if skipped:
             log.info("Vaqtincha o'tkazildi (ochilmayotgan): %d ta sayt", len(skipped))
@@ -607,7 +631,7 @@ class Run:
         except Exception as e:  # noqa
             self.errors["google"] = repr(e)[:150]
         try:
-            for t in fut_tg.result(timeout=60):
+            for t in fut_tg.result(timeout=(7200 if BF_SINCE else 60)):
                 self.add_found(**t)
         except Exception as e:  # noqa
             self.errors["telegram"] = repr(e)[:150]
@@ -673,6 +697,10 @@ class Run:
         seen = set(self.meta.get("sites_seen", [])) | {d for d in self.site_domains if self.stats.get(d, {}).get("links")}
         self.meta["sites_seen"] = sorted(seen)
         log.info("Tekshiruv tugadi (%.0fs). Yangi topilmalar: %d", elapsed(), len(self.new_found))
+        if BF_SINCE:
+            self.persist_found()     # yuborish alohida qadamda (monitor.backfill_send)
+            self.cleanup_and_save()
+            return
         self.send()
         self.persist_found()
         self.daily_summary()

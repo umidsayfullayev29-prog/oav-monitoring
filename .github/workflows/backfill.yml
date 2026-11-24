@@ -1,0 +1,83 @@
+name: OAV qayta ko'rib chiqish
+
+on:
+  workflow_dispatch:
+    inputs:
+      since:
+        description: "Boshlang'ich sana (YYYY-MM-DD)"
+        default: "2026-11-01"
+      only_send:
+        description: "Faqat yuborish (qidiruvsiz, oldingi natijadan davom)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: oav-backfill
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    if: ${{ !inputs.only_send }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -q -r requirements.txt
+      - name: Qidiruv (1-noyabrdan)
+        env:
+          BACKFILL_SINCE: ${{ inputs.since }}
+          RUN_BUDGET_SEC: '16200'
+        run: |
+          rm -f data/backfill.jsonl data/backfill_sent.txt data/backfill_review.md
+          python -m monitor.main
+      - name: Natijani repoga yozish
+        if: always()
+        run: |
+          git config user.name "oav-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A data/
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -q -m "Qayta ko'rib chiqish: topilmalar"
+          for i in 1 2 3 4 5; do git pull -q --rebase && git push -q && exit 0; sleep 7; done
+          exit 1
+
+  send:
+    needs: scan
+    if: ${{ always() && (needs.scan.result == 'success' || inputs.only_send) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -q -r requirements.txt
+      - name: Kanalga yuborish
+        env:
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          ARCHIVE_CHAT: '@statistikaoav'
+          SEND_BUDGET_SEC: '18000'
+        run: |
+          git pull -q
+          python -m monitor.backfill_send
+      - name: Yuborilganlarni repoga yozish
+        if: always()
+        run: |
+          git config user.name "oav-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A data/
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -q -m "Qayta ko'rib chiqish: kanalga yuborildi"
+          for i in 1 2 3 4 5; do git pull -q --rebase && git push -q && exit 0; sleep 7; done
+          exit 1
