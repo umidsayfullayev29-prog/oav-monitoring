@@ -80,7 +80,7 @@ sites:
   - {domain: aniq.uz, pages: ['/', '/uz']}
   - {domain: dunyo.info, pages: ['/']}
   - {domain: zamin.uz, pages: ['/', '/ru/']}
-  - {domain: yuz.uz, pages: ['/', '/ru']}
+  - {domain: yuz.uz, pages: ['/', '/oz', '/uz', '/ru']}   # til cookie bilan tanlanadi — har bir tilni alohida o'qiymiz
   - {domain: bugun.uz, pages: ['/']}
   - {domain: uz.sputniknews.ru, pages: ['/']}
   - {domain: oz.sputniknews.uz, pages: ['/']}
