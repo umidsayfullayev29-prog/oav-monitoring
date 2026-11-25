@@ -127,7 +127,8 @@ sites:
   - {domain: qazinform.com, pages: ['/']}
 
 # --- stat.uz «OAV biz haqimizda» jadvallaridagi OAV (2025–2026 PDF hisobotlari asosida)
-  - {domain: trend.az, pages: ['/']}
+  - {domain: trend.az, pages: ['/', '/casia/uzbekistan']}
+  - {domain: en.trend.az, pages: ['/casia/uzbekistan', '/business']}
   - {domain: everyday.uz, pages: ['/']}
   - {domain: vaqt.uz, pages: ['/']}
   - {domain: batafsil.uz, pages: ['/']}
