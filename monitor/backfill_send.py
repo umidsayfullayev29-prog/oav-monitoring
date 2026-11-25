@@ -82,7 +82,8 @@ def main():
         groups.setdefault(r.get("alt_of") or r["k"], []).append(r)
     chosen, review = [], []
     for root, grp in groups.items():
-        if any(x["k"] in live or x.get("tk") in live for x in grp):
+        # kanalga allaqachon ketgan (jonli monitoring yoki oldingi qayta ko'rish) xabarning boshqa versiyasi
+        if any(x["k"] in live or x.get("tk") in live or x["k"] in sent for x in grp):
             continue
         ok = [x for x in grp if not problem_reason(x) and (x.get("date") or x.get("layer") == "Telegram")]
         if not ok:

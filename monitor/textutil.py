@@ -4,6 +4,9 @@ import html as htmllib
 
 APOS = set("'ʻʼ‘’`´ʹ′")
 COMBINING_DOT = "̇"
+# Yangi lotin yozuvi (Özbekiston, qömita, yaşaydi, ğ, ç) va turkiy harflar — odatiy o'zbek lotiniga
+NEW_LATIN = {"ö": "o", "ő": "o", "ō": "o", "ŏ": "o", "ğ": "g", "ǵ": "g", "ş": "sh", "ș": "sh",
+             "ç": "ch", "ı": "i", "ñ": "ng"}
 
 
 def norm_with_map(s: str):
@@ -27,6 +30,7 @@ def norm_with_map(s: str):
             low = ch.lower().replace(COMBINING_DOT, "")
         if low == "ё":
             low = "е"
+        low = "".join(NEW_LATIN.get(c, c) for c in low)
         for c in low:
             out.append(c)
             idx.append(i)
@@ -40,7 +44,8 @@ def norm(s: str) -> str:
 
 def norm_pattern(p: str) -> str:
     p = "".join(ch for ch in p if ch not in APOS)
-    return p.replace("İ", "i").lower().replace(COMBINING_DOT, "").replace("ё", "е")
+    p = p.replace("İ", "i").lower().replace(COMBINING_DOT, "").replace("ё", "е")
+    return "".join(NEW_LATIN.get(c, c) for c in p)
 
 
 class Matcher:

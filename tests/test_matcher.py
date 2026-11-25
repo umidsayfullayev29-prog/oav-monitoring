@@ -13,6 +13,9 @@ CASES = [
     # (matn, sarlavha, topilishi kerakmi)
     ("Oʻzbekiston Respublikasi Milliy statistika qoʻmitasi maʼlumotlariga koʻra, inflyatsiya pasaydi.", "", True),
     ("Миллий статистика қўмитасининг маълумотига кўра", "", True),
+    # yangi lotin yozuvi (ö, ş, ğ, ç)
+    ("Bu haqda Milliy statistika qömitasi aholini röyxatga oliş natijalari asosida maʼlum qildi.",
+     "Özbekistonda eng yoş aholi Surxondaryo viloyatida yaşaydi", True),
     ("По данным Нацкомстата", "", True),
     ("По данным комитета по статистике, в Ташкенте", "", True),
     ("According to the National Statistics Committee of Uzbekistan, exports rose", "", True),
