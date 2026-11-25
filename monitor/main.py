@@ -445,8 +445,10 @@ class Run:
         # filtrlanadigan kanallar: obunachisi ma'lum va kam bo'lsa — o'tkazamiz
         # (har 50-ishga tushishda soni qayta tekshiriladi)
         recheck = self.meta.get("run_no", 0) % 50 == 0
-        small = {c for c in filtered if c in subs and subs[c] is not None and subs[c] < min_subs and not recheck}
-        chans += sorted(filtered - small)
+        chans += sorted(filtered)
+        # 5000+ obunachi talabi hamma kanallarga (asosiy ro'yxatga ham) qo'llanadi
+        small = {c for c in chans if c in subs and subs[c] is not None and subs[c] < min_subs and not recheck}
+        chans = [c for c in chans if c not in small]
         chans = [c for c in chans if c not in EXCLUDE_TG]
         if getattr(self, "tg_shard", None):
             i, n = self.tg_shard
@@ -464,7 +466,7 @@ class Run:
                 continue
             n_subs = web.tg_subscribers(res[1])
             subs[c] = n_subs
-            if c in filtered and n_subs is not None and n_subs < min_subs:
+            if n_subs is not None and n_subs < min_subs:
                 continue
             posts = web.parse_tg(res[1])
             # Faol kanal: sahifadagi postlarning hammasi yangi bo'lsa, orada qolib ketganlari bor —

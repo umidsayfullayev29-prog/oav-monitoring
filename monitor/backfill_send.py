@@ -65,6 +65,18 @@ def main():
             live.update(r.get("xk") or [])
             if r.get("tk"):
                 live.add(r["tk"])
+    # 5000 dan kam obunachili Telegram kanallari yuborilmaydi
+    min_subs = 5000
+    chans = sorted({r["source"].split("/")[-1] for r in recs if r.get("layer") == "Telegram"})
+    subs = {}
+    for c in chans:
+        try:
+            subs[c] = web.tg_subscribers(web.fetch(f"https://t.me/s/{c}", 15)[1])
+        except Exception:  # noqa
+            subs[c] = None
+    small = {c for c, n in subs.items() if n is not None and n < min_subs}
+    log.info("Telegram kanallari: %d, 5000 dan kami: %d", len(chans), len(small))
+    recs = [r for r in recs if not (r.get("layer") == "Telegram" and r["source"].split("/")[-1] in small)]
     groups = {}
     for r in recs:
         groups.setdefault(r.get("alt_of") or r["k"], []).append(r)
