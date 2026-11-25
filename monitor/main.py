@@ -8,6 +8,7 @@ import re
 import sys
 import json
 import time
+import threading
 import html
 import hashlib
 import logging
@@ -37,7 +38,9 @@ MAX_AGE_DAYS = 4          # bundan eski maqolalar yuborilmaydi
 # Qayta ko'rib chiqish rejimi: BACKFILL_SINCE=2026-11-01 — shu sanadan beri hamma manbalar qayta tekshiriladi
 BACKFILL_SINCE = os.environ.get("BACKFILL_SINCE", "").strip()
 BF_SINCE = dt.datetime.fromisoformat(BACKFILL_SINCE).replace(tzinfo=TZ) if BACKFILL_SINCE else None
-CHANNEL_START = "2026-11-24T21:25"   # shu vaqtdan beri topilmalar kanalga ketmoqda
+CHANNEL_START = "2026-11-24T21:25"
+BF_PART = os.environ.get("BF_PART", "").strip()          # sites:0/6 | tg:1/3 | search
+BF_DEADLINE = int(os.environ.get("BF_DEADLINE_SEC", "17400"))   # shu vaqtdan beri topilmalar kanalga ketmoqda
 if BF_SINCE:
     MAX_AGE_DAYS = (NOW - BF_SINCE).days + 1
     STATE = ROOT / "state_bf"
@@ -85,10 +88,13 @@ class Run:
         self.meta = load_json(STATE / "meta.json", {})
         self.bootstrap = len(self.checked) == 0
         self.found_keys = set()
-        self.found_path = DATA / ("backfill.jsonl" if BF_SINCE else "found.jsonl")
+        self.found_path = DATA / "found.jsonl"
+        if BF_SINCE:
+            (DATA / "bf").mkdir(parents=True, exist_ok=True)
+            self.found_path = DATA / "bf" / ((BF_PART or "all").replace(":", "_").replace("/", "of") + ".jsonl")
         self.recent = []
         lim4 = (NOW - dt.timedelta(days=4)).isoformat()
-        for fname in ("found.jsonl", "backfill.jsonl"):
+        for fname in ["found.jsonl"] + ([] if BF_SINCE else [str(x.relative_to(DATA)) for x in sorted((DATA / "bf").glob("*.jsonl"))] if (DATA / "bf").exists() else []):
             fp = DATA / fname
             if not fp.exists():
                 continue
@@ -170,6 +176,9 @@ class Run:
                     self.alt_queue.append((root, rec["lang"], url))
                     break
         self.new_found.append(rec)
+        if BF_SINCE:
+            with self.found_path.open("a", encoding="utf-8") as f:   # darhol yoziladi — to'xtab qolsa ham saqlanadi
+                f.write(json.dumps(rec, ensure_ascii=False) + "\n")
         if not rec.get("alt_of"):
             self.pending.append(rec)
         self.st(source)["found"] += 1
@@ -439,6 +448,9 @@ class Run:
         small = {c for c in filtered if c in subs and subs[c] is not None and subs[c] < min_subs and not recheck}
         chans += sorted(filtered - small)
         chans = [c for c in chans if c not in EXCLUDE_TG]
+        if getattr(self, "tg_shard", None):
+            i, n = self.tg_shard
+            chans = [c for j, c in enumerate(chans) if j % n == i]
         s = self.st("telegram")
         s["feeds"] = len(chans)
         out = []
@@ -495,10 +507,14 @@ class Run:
                 first = p["text"].split("\n", 1)[0]
                 m = self.kw.match(p["text"], title=first, trusted=True)
                 if m:
-                    out.append(dict(url=url, title=first[:150], source=f"t.me/{c}", keyword=m[1], kind=m[0],
-                                    snip=snippet(p["text"], m[2], m[3]), date=p["date"], layer="Telegram",
-                                    nums=ver.numbers(p["text"][:1500]), links=p.get("links") or [],
-                                    outlet=self.tg_outlet(c)))
+                    rec = dict(url=url, title=first[:150], source=f"t.me/{c}", keyword=m[1], kind=m[0],
+                               snip=snippet(p["text"], m[2], m[3]), date=p["date"], layer="Telegram",
+                               nums=ver.numbers(p["text"][:1500]), links=p.get("links") or [],
+                               outlet=self.tg_outlet(c))
+                    if BF_SINCE:
+                        self.add_found(**rec)      # qayta ko'rishda darhol yoziladi
+                    else:
+                        out.append(rec)
         kept = sum(1 for c in filtered if (subs.get(c) or 0) >= min_subs)
         log.info("Telegram: %d ta kanal; statistikaoav ro'yxatidan %d/%d tasi %d+ obunachili",
                  len(chans), kept, len(filtered), min_subs)
@@ -577,12 +593,24 @@ class Run:
         sites = [x for x in sites if x["domain"] not in skipped]
         if skipped:
             log.info("Vaqtincha o'tkazildi (ochilmayotgan): %d ta sayt", len(skipped))
+        do_search = do_tg = True
+        if BF_PART:
+            kind, _, sh = BF_PART.partition(":")
+            i, n = (int(x) for x in sh.split("/")) if sh else (0, 1)
+            do_search = kind == "search"
+            do_tg = kind == "tg"
+            self.tg_shard = (i, n) if do_tg else None
+            sites = [x for j, x in enumerate(sites) if kind == "sites" and j % n == i]
+            log.info("Qism: %s — saytlar %d, telegram %s, qidiruv %s", BF_PART, len(sites), do_tg, do_search)
+            threading.Timer(BF_DEADLINE, lambda: (log.warning("Vaqt chegarasi — to'xtatildi"), os._exit(0))).start()
         self.fetch_pool = cf.ThreadPoolExecutor(64)
         site_pool = cf.ThreadPoolExecutor(32)
         aux_pool = cf.ThreadPoolExecutor(2)
-        fut_google = aux_pool.submit(self.google_layer)
-        fut_bing = aux_pool.submit(self.bing_layer)
-        fut_tg = site_pool.submit(self.telegram_layer)
+        _none = cf.Future(); _none.set_result([])
+        self.google_hits = []
+        fut_google = aux_pool.submit(self.google_layer) if do_search else _none
+        fut_bing = aux_pool.submit(self.bing_layer) if do_search else _none
+        fut_tg = site_pool.submit(self.telegram_layer) if do_tg else _none
         site_futs = {site_pool.submit(self.site_scan, s): s["domain"] for s in sites}
         articles = []
         for f in cf.as_completed(site_futs):
@@ -708,7 +736,7 @@ class Run:
         self.write_summary()
 
     def persist_found(self):
-        if not self.new_found:
+        if not self.new_found or BF_SINCE:
             return
         DATA.mkdir(exist_ok=True)
         with self.found_path.open("a", encoding="utf-8") as f:

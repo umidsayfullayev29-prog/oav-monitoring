@@ -22,7 +22,12 @@ jobs:
   scan:
     if: ${{ !inputs.only_send }}
     runs-on: ubuntu-latest
-    timeout-minutes: 330
+    timeout-minutes: 320
+    strategy:
+      fail-fast: false
+      matrix:
+        part: ['sites:0/8', 'sites:1/8', 'sites:2/8', 'sites:3/8', 'sites:4/8', 'sites:5/8', 'sites:6/8', 'sites:7/8',
+               'tg:0/4', 'tg:1/4', 'tg:2/4', 'tg:3/4', 'search']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -33,10 +38,10 @@ jobs:
       - name: Qidiruv (1-noyabrdan)
         env:
           BACKFILL_SINCE: ${{ inputs.since }}
-          RUN_BUDGET_SEC: '16200'
-        run: |
-          rm -f data/backfill.jsonl data/backfill_sent.txt data/backfill_review.md
-          python -m monitor.main
+          BF_PART: ${{ matrix.part }}
+          RUN_BUDGET_SEC: '15600'
+          BF_DEADLINE_SEC: '17100'
+        run: python -m monitor.main
       - name: Natijani repoga yozish
         if: always()
         run: |
@@ -44,13 +49,13 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A data/
           if git diff --cached --quiet; then exit 0; fi
-          git commit -q -m "Qayta ko'rib chiqish: topilmalar"
-          for i in 1 2 3 4 5; do git pull -q --rebase && git push -q && exit 0; sleep 7; done
+          git commit -q -m "Qayta ko'rib chiqish: ${{ matrix.part }}"
+          for i in $(seq 1 12); do git pull -q --rebase && git push -q && exit 0; sleep $((RANDOM % 20 + 5)); done
           exit 1
 
   send:
     needs: scan
-    if: ${{ always() && (needs.scan.result == 'success' || inputs.only_send) }}
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 330
     steps:

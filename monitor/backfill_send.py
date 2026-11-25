@@ -17,6 +17,7 @@ from pathlib import Path
 from .main import (DATA, CHANNEL_START, LANG_PRIORITY, ARCHIVE_CHAT, problem_reason, channel_text,
                    h, NOW)
 from . import web
+from . import versions as ver
 from .telegram import Telegram
 
 log = logging.getLogger("oav.bf")
@@ -35,7 +36,24 @@ def load(p):
 
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", stream=sys.stdout)
-    recs = load(DATA / "backfill.jsonl")
+    raw = []
+    for fp in sorted((DATA / "bf").glob("*.jsonl")):
+        raw += load(fp)
+    # qismlar orasidagi takrorlarni olib tashlash va til/kanal versiyalarini qayta guruhlash
+    seen, recs = set(), []
+    # to'liq matn bilan topilganlar (sayt, Telegram) Google/Bing nusxasidan ustun
+    for r in sorted(raw, key=lambda r: (r.get("layer") in ("Google News", "Bing News"),
+                                        r.get("date") or r.get("found_at") or "")):
+        keys = {r["k"]} | set(r.get("xk") or []) | ({r["tk"]} if r.get("tk") else set())
+        if keys & seen:
+            continue
+        seen |= keys
+        r.pop("alt_of", None)
+        for o in recs:
+            if "news.google." not in r["url"] and o.get("outlet") == r.get("outlet") and ver.same_story(r, o):
+                r["alt_of"] = o.get("alt_of") or o["k"]
+                break
+        recs.append(r)
     sent_p = DATA / "backfill_sent.txt"
     sent = set(sent_p.read_text("utf-8").split()) if sent_p.exists() else set()
     # kanalga jonli monitoring yuborganlar (qayta ko'rish davomida yuborilganlari ham)
