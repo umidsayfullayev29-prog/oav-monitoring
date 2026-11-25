@@ -136,6 +136,13 @@ sites:
   - {domain: postfactum.uz, pages: ['/']}
   - {domain: xabardor.uz, pages: ['/']}
   - {domain: oz.inform.kz, pages: ['/']}
+  # --- Google/Bing qayta ko'rishda topilgan, ro'yxatda yo'q saytlar (25.11.2026)
+  - {domain: inform.kz, pages: ['/ru']}
+  - {domain: airpress.kz, pages: ['/']}
+  - {domain: egementimes.kz, pages: ['/']}
+  - {domain: 24.kg, pages: ['/']}
+  - {domain: kabar.kg, pages: ['/']}
+  - {domain: open4business.com.ua, pages: ['/']}
   - {domain: ily.uz, pages: ['/']}
   - {domain: one.uz, pages: ['/']}
   - {domain: nova24.uz, pages: ['/']}
