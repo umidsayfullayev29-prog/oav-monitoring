@@ -228,7 +228,7 @@ async def main_async():
     test_n = int(os.environ.get("GAZETA_TEST", "0") or 0)
     since = os.environ.get("GAZETA_SINCE", "").strip()
     since = dt.datetime.fromisoformat(since).replace(tzinfo=TZ) if since else None
-    if not test_n and not STATE_PATH.exists() and os.environ.get("GITHUB_EVENT_NAME") == "schedule":
+    if not test_n and not since and not STATE_PATH.exists():
         log.info("Gazeta monitoringi hali qo'lda ishga tushirilmagan (sinovdan keyin yoqiladi) — o'tkazib yuborildi")
         return 0
     t0 = time.monotonic()
