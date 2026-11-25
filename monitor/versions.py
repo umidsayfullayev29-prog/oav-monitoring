@@ -90,6 +90,33 @@ def _close(a, b, hours):
     return abs((da - db).total_seconds()) <= hours * 3600
 
 
+_CY = dict(zip("абвгдезийклмнопрстуфхцчшъьэюяёўқғҳжы",
+               ["a", "b", "v", "g", "d", "e", "z", "i", "y", "k", "l", "m", "n", "o", "p", "r", "s", "t", "u",
+                "f", "x", "ts", "ch", "sh", "", "", "e", "yu", "ya", "yo", "o", "q", "g", "h", "j", "i"]))
+_NEWLAT = {"ö": "o", "ğ": "g", "ş": "sh", "ç": "ch", "ı": "i", "ñ": "ng", "ō": "o", "ŏ": "o"}
+
+
+def title_tokens(t):
+    """Sarlavha so'zlari lotin yozuvida (kirill sarlavha ham lotinga o'giriladi), tutuq belgilarsiz."""
+    s = (t or "").lower()
+    s = "".join(_CY.get(c, _NEWLAT.get(c, c)) for c in s)
+    s = re.sub(r"[ʻʼ‘’'`´]", "", s)
+    s = s.replace("h", "x").replace("kh", "x")     # хорижий -> xorijiy, horijiy -> xorijiy
+    return {w for w in re.sub(r"[^a-z0-9 ]", " ", s).split() if len(w) > 2}
+
+
+def _url_date(u):
+    m = re.search(r"/(20\d\d)/(\d\d)/(\d\d)/", u or "")
+    return (int(m.group(1)), int(m.group(2)), int(m.group(3))) if m else None
+
+
+def _slug(u):
+    """Til qismisiz yo'l: gazeta.uz/oz/2026/11/23/gas va gazeta.uz/uz/2026/11/23/gas -> bir xil."""
+    p = up.unquote(up.urlsplit(u).path)
+    p = re.sub(r"^/(uz-cyrl|uz-latn|o[ʻ'‘’]?z|uz|ru|en|kr|cyr|lat)(?=/)", "", p, flags=re.I)
+    return p.rstrip("/").lower()
+
+
 def _url_id(u):
     m = re.search(r"[-/_](\d{3,})(?:\.html?|/)?$", up.urlsplit(u).path)
     return m.group(1) if m else None
@@ -99,6 +126,24 @@ def same_story(a: dict, b: dict) -> bool:
     """Bitta nashrdagi bitta xabar (boshqa til yoki sayt + o'z Telegram kanali)."""
     if outlet(a) != outlet(b):
         return False
+    # Havoladagi sanalar 2 kundan ko'p farq qilsa — boshqa-boshqa maqolalar
+    da, db = _url_date(a["url"]), _url_date(b["url"])
+    if da and db:
+        import datetime as _dt
+        if abs((_dt.date(*da) - _dt.date(*db)).days) > 2:
+            return False
+    # Bir xil yo'l, faqat til qismi boshqa (/oz/ va /uz/, /uz/ va til qismisiz)
+    if "t.me" not in a["url"] and "t.me" not in b["url"]:
+        sa, sb = _slug(a["url"]), _slug(b["url"])
+        if sa == sb and len(sa) > 15 and a["url"] != b["url"]:
+            return True
+    # Sarlavha bir xil (lotin/kirill farqi hisobga olinmaydi): kamida 5 so'z, 70% mos, 2 kun ichida
+    # Sarlavhadagi raqamlar farq qilsa ("11% oshdi" va "57,2% oshdi") — bir qolipdagi boshqa xabarlar
+    ta, tb = title_tokens(a.get("title")), title_tokens(b.get("title"))
+    tna, tnb = set(numbers(a.get("title") or "")), set(numbers(b.get("title") or ""))
+    if len(ta) >= 5 and len(tb) >= 5 and tna == tnb and len(ta & tb) / max(len(ta), len(tb)) >= 0.7 \
+            and _close(a, b, 48):
+        return True
     # Telegram posti aynan shu nashrning shu maqolasiga havola bersa.
     # Faqat nashrning o'z saytidagi maqola havolalari hisoblanadi: qo'mita kanaliga, stat.uz'ga
     # yoki bosh sahifaga havolalar (ko'p xabarda bir xil bo'ladi) hisobga olinmaydi.
