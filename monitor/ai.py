@@ -13,7 +13,7 @@ import time
 import requests
 
 log = logging.getLogger("oav.ai")
-MODELS = [m.strip() for m in os.environ.get("GEMINI_MODEL", "gemini-3.8-flash").split(",") if m.strip()]
+MODELS = [m.strip() for m in os.environ.get("GEMINI_MODEL", "gemini-3.5-flash,gemini-3.8-flash").split(",") if m.strip()]
 API = "https://generativelanguage.googleapis.com/v1beta"
 _resolved = []   # ishlagan model birinchi turadi (jarayon davomida eslab qolinadi)
 _cool = {}       # model -> shu vaqtgacha ishlatilmaydi (429/503 dan keyin)
