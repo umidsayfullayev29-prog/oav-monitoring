@@ -146,6 +146,17 @@ class Run:
             return False
         if web.host_of(url) in EXCLUDE_HOSTS:
             return False
+        # Havoladagi sana (/2026/07/25/) eski bo'lsa — eski maqola, sahifadagi sana noto'g'ri o'qilgan
+        mu = re.search(r"/(20\d\d)/(\d\d)/(\d\d)/", url)
+        if mu:
+            try:
+                ud = dt.datetime(int(mu.group(1)), int(mu.group(2)), int(mu.group(3)), tzinfo=TZ)
+                if self.too_old(ud + dt.timedelta(hours=23)):
+                    return False
+                if not date or abs((date - ud).days) > 2:
+                    date = ud
+            except ValueError:
+                pass
         if any(x in self.found_keys for x in (xk or [])):
             return False
         self.found_keys.add(k)

@@ -80,6 +80,21 @@ def outlet(rec: dict) -> str:
     return rec.get("outlet") or site_key(rec["url"])
 
 
+def _close(a, b, hours):
+    import datetime as _dt
+    try:
+        da = _dt.datetime.fromisoformat(a.get("date") or a.get("found_at"))
+        db = _dt.datetime.fromisoformat(b.get("date") or b.get("found_at"))
+    except (TypeError, ValueError):
+        return False
+    return abs((da - db).total_seconds()) <= hours * 3600
+
+
+def _url_id(u):
+    m = re.search(r"[-/_](\d{3,})(?:\.html?|/)?$", up.urlsplit(u).path)
+    return m.group(1) if m else None
+
+
 def same_story(a: dict, b: dict) -> bool:
     """Bitta nashrdagi bitta xabar (boshqa til yoki sayt + o'z Telegram kanali)."""
     if outlet(a) != outlet(b):
@@ -97,6 +112,10 @@ def same_story(a: dict, b: dict) -> bool:
         return out
     if own_links(a) & own_links(b):
         return True
+    # bir xil maqola raqami (masalan, ...-5252 va oz/...-5252)
+    ia, ib = _url_id(a["url"]), _url_id(b["url"])
+    if ia and ia == ib and a["url"] != b["url"] and "t.me" not in a["url"]:
+        return True
     # Bir xil rasm/raqamlar — faqat bitta nashr ichida (boshqa nashrlar qo'mita rasmini
     # va raqamlarini takrorlagani bilan ular birlashtirilmaydi — yuqorida outlet tekshirildi).
     if a.get("img") and a.get("img") == b.get("img"):
@@ -108,6 +127,9 @@ def same_story(a: dict, b: dict) -> bool:
         return False
     ratio = len(common) / small
     if len(common) >= 3 and ratio >= 0.5:
+        return True
+    # Boshqa til versiyasi: tili farq qiladi, 3 soat ichida chiqqan va kamida 2 ta raqam bir xil
+    if a.get("lang") != b.get("lang") and len(common) >= 2 and _close(a, b, 3):
         return True
     if len(common) >= 2 and small <= 3 and ratio >= 0.66:
         return True
