@@ -895,9 +895,29 @@ class Run:
         lines = [f"📊 <b>Kunlik yakun — {NOW.strftime('%d.%m.%Y')}</b>",
                  f"Bugun topilgan chiqishlar: <b>{len(day_recs)}</b>", ""]
         lines += [f"• {html.escape(s)} — {n}" for s, n in top]
+        lines += [""] + self.run_health_lines()
         tg = Telegram(os.environ.get("TG_BOT_TOKEN"), os.environ.get("TG_CHAT_ID"))
         if tg.send("\n".join(lines), silent=True, preview=False):
             self.meta["summary_day"] = today
+
+    def run_health_lines(self):
+        """Bugungi tekshiruvlar soni va eng uzoq tanaffus (zanjir uzilganini ko'rish uchun)."""
+        day0 = NOW.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+        ts = sorted(set(self.meta.get("run_log", [])) | {int(NOW.timestamp())})
+        prev = [t for t in ts if t < day0]
+        today = [t for t in ts if t >= day0]
+        seq = prev[-1:] + today
+        gap, ga, gb = 0, None, None
+        for a, b in zip(seq, seq[1:]):
+            if b - a > gap:
+                gap, ga, gb = b - a, a, b
+        hm = lambda t: dt.datetime.fromtimestamp(t, TZ).strftime("%H:%M")  # noqa: E731
+        out = [f"Bugungi tekshiruvlar: <b>{len(today)}</b> ta"]
+        if gap > 90 * 60:
+            out.append(f"⚠️ Eng uzoq tanaffus: <b>{gap // 3600} soat {gap % 3600 // 60} daq</b> ({hm(ga)}–{hm(gb)})")
+        else:
+            out.append("Tanaffus 1,5 soatdan oshmadi ✅")
+        return out
 
     # ------------------------------------------------------------ saqlash
     def cleanup_and_save(self):
@@ -908,6 +928,7 @@ class Run:
         self.meta["baseline_done"] = sorted(self.baseline_done | self.baseline_new)
         self.meta["tg_seen"] = sorted(self.tg_seen | self.tg_seen_new)
         self.meta["last_run_ts"] = int(NOW.timestamp())
+        self.meta["run_log"] = (self.meta.get("run_log", []) + [int(NOW.timestamp())])[-150:]
         for name, obj in (("checked.json", self.checked), ("feeds.json", self.feeds),
                           ("pending.json", self.pending), ("meta.json", self.meta), ("msgs.json", self.msgs)):
             (STATE / name).write_text(json.dumps(obj, ensure_ascii=False, default=str), "utf-8")
