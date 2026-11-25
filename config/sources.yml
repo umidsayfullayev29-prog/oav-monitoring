@@ -861,6 +861,11 @@ telegram_channels:
 
 # t.me/statistikaoav kanalida forward qilingan / havolasi berilgan kanallar (2026-may – noyabr).
 # Bulardan faqat obunachilari min_subscribers dan ko'plari kuzatiladi (soni o'zi aniqlanadi).
+# Kalit so'z bo'lmasa ham postlari Gemini (AI) orqali tekshiriladigan kanallar
+telegram_channels_ai:
+  - uzbekistan24_tvnews
+  - the_bakiroo
+
 telegram_channels_min_subscribers: 5000   # hamma kanallarga qo'llanadi
 telegram_channels_filtered:
   - a_huquq_uz

@@ -332,6 +332,11 @@ def parse_tg(html: str):
         prev = m.select_one("a.tgme_widget_message_link_preview[href]")
         if prev:
             links.append(prev["href"])
-        out.append({"post": m["data-post"], "text": text, "links": links,
+        img = None
+        ph = m.select_one(".tgme_widget_message_photo_wrap[style]")
+        if ph:
+            mm = re.search(r"url\(['\"]?([^'\")]+)", ph["style"])
+            img = mm.group(1) if mm else None
+        out.append({"post": m["data-post"], "text": text, "links": links, "img": img,
                     "date": parse_date(t["datetime"]) if t else None})
     return out

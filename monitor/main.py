@@ -25,6 +25,7 @@ from . import web
 from .telegram import Telegram
 from . import versions as ver
 from . import gnews
+from . import ai
 
 ROOT = Path(__file__).resolve().parent.parent
 STATE = ROOT / "state"      # GitHub Actions cache'da saqlanadi
@@ -464,6 +465,8 @@ class Run:
         if getattr(self, "tg_shard", None):
             i, n = self.tg_shard
             chans = [c for j, c in enumerate(chans) if j % n == i]
+        ai_chans = set(norm_c(self.src.get("telegram_channels_ai")))
+        self.ai_queue = []
         s = self.st("telegram")
         s["feeds"] = len(chans)
         out = []
@@ -510,15 +513,17 @@ class Run:
                 self.meta["tg_links"][c] = dict(sorted(lk.items(), key=lambda x: -x[1])[:30])
             s["links"] += len(posts)
             for p in posts:
-                if not p["text"] or (p["date"] and (NOW - p["date"]).total_seconds() > win):
+                if not (p["text"] or (c in ai_chans and p.get("img"))) or (p["date"] and (NOW - p["date"]).total_seconds() > win):
                     continue  # Telegram'da faqat oxirgi 36 soat (qayta ko'rishda — boshlang'ich sanadan)
                 url = f"https://t.me/{p['post']}"
                 if self.is_checked(url):
                     continue
                 self.mark_checked(url)
                 s["checked"] += 1
-                first = p["text"].split("\n", 1)[0]
-                m = self.kw.match(p["text"], title=first, trusted=True)
+                first = p["text"].split("\n", 1)[0] if p["text"] else ""
+                m = self.kw.match(p["text"], title=first, trusted=True) if p["text"] else None
+                if not m and c in ai_chans and ai.available() and len(self.ai_queue) < 40:
+                    self.ai_queue.append((c, p, url))
                 if m:
                     rec = dict(url=url, title=first[:150], source=f"t.me/{c}", keyword=m[1], kind=m[0],
                                snip=snippet(p["text"], m[2], m[3]), date=p["date"], layer="Telegram",
@@ -528,6 +533,24 @@ class Run:
                         self.add_found(**rec)      # qayta ko'rishda darhol yoziladi
                     else:
                         out.append(rec)
+        for c, p, url in self.ai_queue:
+            res = ai.check_post(p["text"], p.get("img"), session=web.session())
+            self.st("gemini")["checked"] += 1
+            if res is None:
+                self.st("gemini")["err"] += 1
+                continue
+            ok, reason, ev = res
+            if not ok:
+                continue
+            self.st("gemini")["found"] += 1
+            first = (p["text"].split("\n", 1)[0] if p["text"] else ev)[:150] or "Rasm"
+            rec = dict(url=url, title=first, source=f"t.me/{c}", keyword="AI: " + reason[:60], kind="aniq",
+                       snip=html.escape(ev or reason), date=p["date"], layer="Telegram",
+                       nums=ver.numbers((p["text"] or "")[:1500]), links=p.get("links") or [], outlet=self.tg_outlet(c))
+            if BF_SINCE:
+                self.add_found(**rec)
+            else:
+                out.append(rec)
         kept = sum(1 for c in filtered if (subs.get(c) or 0) >= min_subs)
         log.info("Telegram: %d ta kanal; statistikaoav ro'yxatidan %d/%d tasi %d+ obunachili",
                  len(chans), kept, len(filtered), min_subs)
