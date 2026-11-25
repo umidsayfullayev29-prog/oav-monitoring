@@ -865,6 +865,9 @@ telegram_channels:
 telegram_channels_ai:
   - uzbekistan24_tvnews
   - the_bakiroo
+# Bularning AI topgan postlari kanaldan tashqari egasiga ham yuboriladi
+telegram_channels_ai_dm:
+  - uzbekistan24_tvnews
 
 telegram_channels_min_subscribers: 5000   # hamma kanallarga qo'llanadi
 telegram_channels_filtered:

@@ -522,8 +522,10 @@ class Run:
                 s["checked"] += 1
                 first = p["text"].split("\n", 1)[0] if p["text"] else ""
                 m = self.kw.match(p["text"], title=first, trusted=True) if p["text"] else None
-                if not m and c in ai_chans and ai.available() and len(self.ai_queue) < 40:
-                    self.ai_queue.append((c, p, url))
+                if not m and c in ai_chans and ai.available():
+                    self.ai_queue.append({"c": c, "url": url, "text": p["text"], "img": p.get("img"),
+                                          "date": p["date"].isoformat() if p["date"] else None,
+                                          "links": p.get("links") or []})
                 if m:
                     rec = dict(url=url, title=first[:150], source=f"t.me/{c}", keyword=m[1], kind=m[0],
                                snip=snippet(p["text"], m[2], m[3]), date=p["date"], layer="Telegram",
@@ -533,28 +535,56 @@ class Run:
                         self.add_found(**rec)      # qayta ko'rishda darhol yoziladi
                     else:
                         out.append(rec)
-        for c, p, url in self.ai_queue:
-            res = ai.check_post(p["text"], p.get("img"), session=web.session())
+        if BF_SINCE:
+            self.ai_process(budget=3600, limit=10000)
+        kept = sum(1 for c in filtered if (subs.get(c) or 0) >= min_subs)
+        log.info("Telegram: %d ta kanal; statistikaoav ro'yxatidan %d/%d tasi %d+ obunachili",
+                 len(chans), kept, len(filtered), min_subs)
+        return out
+
+    def ai_process(self, budget=90, limit=20):
+        """Gemini tekshiruvi — asosiy monitoringdan alohida: vaqt va soni cheklangan, xato bo'lsa
+        navbatda qoladi (keyingi safar qayta uriniladi), boshqa qatlamlarga ta'sir qilmaydi."""
+        queue = self.meta.get("ai_pending", []) + getattr(self, "ai_queue", [])
+        self.ai_queue = []
+        if not queue or not ai.available():
+            self.meta["ai_pending"] = queue[-150:]
+            return
+        dm_chans = set(c.lower() for c in (self.src.get("telegram_channels_ai_dm") or []))
+        t0 = time.monotonic()
+        rest = []
+        for i, q in enumerate(queue):
+            if i >= limit or time.monotonic() - t0 > budget:
+                rest.append(q)
+                continue
+            try:
+                res = ai.check_post(q["text"], q.get("img"), session=web.session())
+            except Exception as e:  # noqa
+                res = None
+                self.errors["gemini"] = repr(e)[:150]
             self.st("gemini")["checked"] += 1
             if res is None:
                 self.st("gemini")["err"] += 1
+                q["tries"] = q.get("tries", 0) + 1
+                if q["tries"] < 3:
+                    rest.append(q)
                 continue
             ok, reason, ev = res
             if not ok:
                 continue
             self.st("gemini")["found"] += 1
-            first = (p["text"].split("\n", 1)[0] if p["text"] else ev)[:150] or "Rasm"
-            rec = dict(url=url, title=first, source=f"t.me/{c}", keyword="AI: " + reason[:60], kind="aniq",
-                       snip=html.escape(ev or reason), date=p["date"], layer="Telegram",
-                       nums=ver.numbers((p["text"] or "")[:1500]), links=p.get("links") or [], outlet=self.tg_outlet(c))
-            if BF_SINCE:
-                self.add_found(**rec)
-            else:
-                out.append(rec)
-        kept = sum(1 for c in filtered if (subs.get(c) or 0) >= min_subs)
-        log.info("Telegram: %d ta kanal; statistikaoav ro'yxatidan %d/%d tasi %d+ obunachili",
-                 len(chans), kept, len(filtered), min_subs)
-        return out
+            date = dt.datetime.fromisoformat(q["date"]) if q.get("date") else None
+            first = ((q["text"] or "").split("\n", 1)[0] or ev or "Rasm")[:150]
+            added = self.add_found(url=q["url"], title=first, source=f"t.me/{q['c']}", keyword="AI: " + reason[:60],
+                                   kind="aniq", snip=html.escape(ev or reason), date=date, layer="Telegram",
+                                   nums=ver.numbers((q["text"] or "")[:1500]), links=q.get("links") or [],
+                                   outlet=self.tg_outlet(q["c"]))
+            if added and q["c"] in dm_chans:
+                self.new_found[-1]["notify_dm"] = True
+                self.new_found[-1]["ai_reason"] = reason
+        self.meta["ai_pending"] = rest[-150:]
+        if queue:
+            log.info("Gemini: %d ta post tekshirildi, navbatda %d", len(queue) - len(rest), len(rest))
 
     def tg_outlet(self, chan):
         """Kanal biror saytning rasmiy kanali bo'lsa — o'sha sayt domeni, aks holda t.me/<kanal>."""
@@ -701,6 +731,11 @@ class Run:
                 self.add_found(**t)
         except Exception as e:  # noqa
             self.errors["telegram"] = repr(e)[:150]
+        if not BF_SINCE:
+            try:
+                self.ai_process()
+            except Exception as e:  # noqa
+                self.errors["gemini"] = repr(e)[:150]
         # Google topgan maqola biz to'liq kuzatayotgan saytdan bo'lsa — o'tkazib yuboramiz
         # (sayt qatlami uni to'liq matn bilan topadi). Sayt ochilmagan bo'lsa — Google'dan olamiz.
         ok_domains = {d for d in self.site_domains if self.stats.get(d, {}).get("links")}
@@ -818,6 +853,9 @@ class Run:
                     self.found_keys.add(h(web.norm_url(url)))
                     cand["sent_as"] = url
                 ok = bool(ch.send(channel_text(cand, url), silent=True, preview_url=url))
+                if ok and cand.get("notify_dm"):
+                    dm.send("🤖 <i>Gemini: " + html.escape(cand.get("ai_reason", "")) + "</i>\n" + format_message(cand),
+                            silent=silent, preview_url=url)
                 if ok:
                     sent += 1
                     time.sleep(1.5)
