@@ -604,7 +604,9 @@ class Run:
             self.tg_shard = (i, n) if do_tg else None
             sites = [x for j, x in enumerate(sites) if kind == "sites" and j % n == i]
             log.info("Qism: %s — saytlar %d, telegram %s, qidiruv %s", BF_PART, len(sites), do_tg, do_search)
-            threading.Timer(BF_DEADLINE, lambda: (log.warning("Vaqt chegarasi — to'xtatildi"), os._exit(0))).start()
+            _t = threading.Timer(BF_DEADLINE, lambda: (log.warning("Vaqt chegarasi — to'xtatildi"), os._exit(0)))
+            _t.daemon = True     # ish erta tugasa, jarayon taymerni kutib o'tirmasin
+            _t.start()
         self.fetch_pool = cf.ThreadPoolExecutor(64)
         site_pool = cf.ThreadPoolExecutor(32)
         aux_pool = cf.ThreadPoolExecutor(2)
