@@ -172,6 +172,22 @@ NOISE = re.compile(r"(related|comment|sidebar|footer|header|menu|share|social|po
                    r"readmore|most-read|trending|cookie|modal|similar|latest-news|news-list)", re.I)
 
 
+# Yangiliklar lentasi belgisi: "Бугун, 19:23", "Kecha, 08:10", "25.11.2026 17:48"
+FEED_TS = re.compile(r"(Бугун|Bugun|Кеча|Kecha|Сегодня|Вчера|Today|Yesterday|Бугун,|"
+                     r"\d{1,2}[./]\d{1,2}(?:[./]\d{2,4})?)\s*,?\s*\d{1,2}:\d{2}\b", re.I)
+
+
+def _drop_feed_lines(body):
+    """Maqola matniga aralashib qolgan "so'nggi yangiliklar" ro'yxatini olib tashlaydi."""
+    out = []
+    for ln in body.split("\n"):
+        n = len(FEED_TS.findall(ln))
+        if n >= 2 or (n == 1 and len(ln) < 220):
+            continue
+        out.append(ln)
+    return "\n".join(out)
+
+
 def _meta(soup, *names):
     for n in names:
         el = soup.find("meta", attrs={"property": n}) or soup.find("meta", attrs={"name": n}) \
@@ -251,6 +267,21 @@ def extract_article(html: str):
             if len(el.find_all("p")) < 8:  # katta matn blokini tasodifan o'chirmaslik
                 el.decompose()
 
+    # Ichida 3+ vaqt belgisi bo'lgan blok — yangiliklar lentasi (sarlavha turgan blok bundan mustasno)
+    h1 = soup.find("h1")
+    for el in soup.find_all(["ul", "ol", "section", "div"]):
+        if getattr(el, "decomposed", False) or el.attrs is None:
+            continue
+        if h1 is not None and (el is h1 or h1 in el.descendants):
+            continue
+        if len(FEED_TS.findall(el.get_text(" ", strip=True))) < 3:
+            continue
+        # ichida haqiqiy maqola xatboshilari bo'lsa (vaqt belgisiz uzun matn) — tegmaymiz
+        prose = [p for p in el.find_all("p") if len(p.get_text(strip=True)) > 150
+                 and not FEED_TS.search(p.get_text(" ", strip=True))]
+        if len(prose) < 2:
+            el.decompose()
+
     body = ""
     cands = soup.find_all(["article"]) + soup.find_all(attrs={"itemprop": "articleBody"})
     cands += soup.find_all("div", class_=re.compile(r"(article|content|post|news|text|body|entry|story|single)", re.I))
@@ -279,6 +310,7 @@ def extract_article(html: str):
         body = "\n".join(p.get_text(" ", strip=True) for p in soup.find_all("p"))
     if ld.get("body") and len(ld["body"]) > len(body):
         body = ld["body"]
+    body = _drop_feed_lines(body)
     return {"title": " ".join((title or "").split()), "desc": desc, "date": date, "text": body, "image": image}
 
 
