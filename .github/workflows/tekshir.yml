@@ -23,7 +23,7 @@ jobs:
         env:
           MODE: ${{ inputs.mode }}
       - if: ${{ startsWith(inputs.mode, 'art:') }}
-        run: python tools/peek_art.py "${MODE#art:}"
+        run: PYTHONPATH=. python tools/peek_art.py "${MODE#art:}"
         env:
           MODE: ${{ inputs.mode }}
       - if: ${{ inputs.mode == 'send' }}
