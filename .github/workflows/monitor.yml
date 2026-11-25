@@ -106,9 +106,3 @@ jobs:
           else
             echo "Boshqa tekshiruv bor ($BUSY) — yangisi qo'shilmadi"
           fi
-          # Gazeta monitoringi ham shu budilnikdan (GitHub jadvali ishlamayapti); xato bo'lsa asosiy zanjirga ta'sir qilmaydi
-          GBUSY=$(gh api "repos/${{ github.repository }}/actions/workflows/gazeta.yml/runs?per_page=3" \
-            --jq '[.workflow_runs[] | select(.status=="queued" or .status=="in_progress")] | length' || echo 1)
-          if [ "$GBUSY" = "0" ]; then
-            gh api -X POST repos/${{ github.repository }}/actions/workflows/gazeta.yml/dispatches -f ref=main || true
-          fi
