@@ -1,6 +1,6 @@
 # Qayta ko'rib chiqish: tekshirish kerak bo'lgan topilmalar
 
-Yaratildi: 25.11.2026 12:31. Bular kanalga yuborilmadi.
+Yaratildi: 25.11.2026 16:23. Bular kanalga yuborilmadi.
 
 -  · rasmiy24.uz · [Rasmiy24 - Latest News and Articles](https://rasmiy24.uz/uz/article/1185/) — Sanasi aniqlanmadi
 -  · avlodmedia.uz · [7 milliondan 135 milliongacha: O‘zbekiston oliygohlarida o‘qish qanchaga tushmoqda? - Avlod News](https://avlodmedia.uz/article/7-milliondan-135-milliongacha/) — Sanasi aniqlanmadi
@@ -28,3 +28,6 @@ Yaratildi: 25.11.2026 12:31. Bular kanalga yuborilmadi.
 -  · ichkiturizm.uz · [В 2025 году Узбекистан посетили 11,7 миллиона туристов](https://ichkiturizm.uz/ru/event/v-2025-godu-uzbekistan-posetili-117-milliona-turistov) — Sanasi aniqlanmadi
 -  · uzreport.news · [O‘zbekiston 11 oyda 1 mlrd dollarlik meva va sabzavotlar eksport qildi](https://uzreport.news/insurance/o-zbekiston-11-oyda-1-mlrd-dollarlik-meva-va-sabzavotlar-eksport-qildi) — Sanasi aniqlanmadi
 -  · uzreport.news · [O‘zbekistonda sug‘urta xizmatlari hajmi bir yilda 74% ga oshdi](https://uzreport.news/insurance/o-zbekistonda-sug-urta-xizmatlari-hajmi-bir-yilda-74-ga-oshdi) — Sanasi aniqlanmadi
+-  · xabardor.uz · [Özbekistonga mol göşti qaysi davlatlardan import qilinmoqda? - XABARDOR.UZ](https://xabardor.uz/uz/post/ozbekistonga-mol-gosti-qaysi-davlatlardan-import-qilinmoqda) — Sanasi aniqlanmadi
+-  · oyina.uz · [Özbekiston aholisining örtaça yoşi ma'lum qilindi](https://oyina.uz/uz/posts/35435) — Sanasi aniqlanmadi
+-  · newscenter.az · [Nikahların sayı azalır » Newscenter.az](https://newscenter.az/2026/11/24/kisiler-nece-yasinda-evlenirler.html) — Sanasi aniqlanmadi
