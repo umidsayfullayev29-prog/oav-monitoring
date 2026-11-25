@@ -552,9 +552,10 @@ class Run:
             return
         dm_chans = set(c.lower() for c in (self.src.get("telegram_channels_ai_dm") or []))
         t0 = time.monotonic()
-        rest = []
+        rest, fails = [], 0
         for i, q in enumerate(queue):
-            if i >= limit or time.monotonic() - t0 > budget:
+            # ketma-ket 2 ta xato — Gemini band yoki kvota tugagan: qolganini keyingi safarga qoldiramiz
+            if i >= limit or time.monotonic() - t0 > budget or fails >= 2:
                 rest.append(q)
                 continue
             try:
@@ -565,10 +566,12 @@ class Run:
             self.st("gemini")["checked"] += 1
             if res is None:
                 self.st("gemini")["err"] += 1
+                fails += 1
                 q["tries"] = q.get("tries", 0) + 1
-                if q["tries"] < 3:
+                if q["tries"] < 12:
                     rest.append(q)
                 continue
+            fails = 0
             ok, reason, ev = res
             if not ok:
                 continue

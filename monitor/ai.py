@@ -8,6 +8,7 @@ import json
 import base64
 import logging
 import re
+import time
 
 import requests
 
@@ -15,6 +16,8 @@ log = logging.getLogger("oav.ai")
 MODELS = [m.strip() for m in os.environ.get("GEMINI_MODEL", "gemini-3.8-flash").split(",") if m.strip()]
 API = "https://generativelanguage.googleapis.com/v1beta"
 _resolved = []   # ishlagan model birinchi turadi (jarayon davomida eslab qolinadi)
+_cool = {}       # model -> shu vaqtgacha ishlatilmaydi (429/503 dan keyin)
+_found = []      # ListModels natijasi (bir marta so'raladi)
 PROMPT = """Sen O'zbekiston Milliy statistika qo'mitasi matbuot xizmati uchun OAV monitoringi qilasan.
 Quyidagi Telegram post (matn va rasm) qo'mita bilan bog'liqmi, aniqla.
 
@@ -65,12 +68,12 @@ def _discover(s, key):
         n = m.get("name", "").split("/")[-1]
         if "generateContent" not in m.get("supportedGenerationMethods", []):
             continue
-        if "flash" not in n or any(x in n for x in ("lite", "image", "tts", "live", "audio", "thinking", "exp")):
+        if "flash" not in n or any(x in n for x in ("image", "tts", "live", "audio", "thinking", "exp")):
             continue
         ver = tuple(int(x) for x in re.findall(r"\d+", n.split("flash")[0])[:2]) or (0,)
-        out.append((ver, "preview" not in n, n))
+        out.append(("lite" not in n, ver, "preview" not in n, n))
     out.sort(reverse=True)
-    return [n for _, _, n in out]
+    return [x[-1] for x in out]
 
 
 def generate(body, session=None, timeout=60):
@@ -81,30 +84,44 @@ def generate(body, session=None, timeout=60):
         return None
     s = session or requests.Session()
     queue = list(dict.fromkeys(_resolved + MODELS))
-    tried, discovered = set(), False
+    tried, discovered = set(), bool(_found)
+    if discovered:
+        queue += [m for m in _found if m not in queue]
+    now = time.time()
     while queue:
         model = queue.pop(0)
-        if model in tried:
+        if model in tried or _cool.get(model, 0) > now:
             continue
         tried.add(model)
+        busy = False
         try:
             r = s.post(f"{API}/models/{model}:generateContent",
                        headers={"x-goog-api-key": key, "Content-Type": "application/json"},
                        data=json.dumps(body), timeout=timeout)
         except requests.RequestException as e:
-            log.info("Gemini xato (%s): %s", model, e)
-            continue
-        if r.status_code == 404:
+            log.info("Gemini xato (%s): %s", model, str(e)[:120])
+            r, busy = None, True
+        if r is not None and r.status_code == 404:
             log.info("Gemini %s: 404", model)
-            hint = re.findall(r"models/([\w.\-]+)", r.text)
-            queue[:0] = [h.rstrip(".") for h in hint if h.rstrip(".") != model and h.rstrip(".") not in tried]
+            hint = [h.rstrip(".") for h in re.findall(r"models/([\w.\-]+)", r.text)]
+            queue[:0] = [h for h in hint if h != model and h not in tried]
+        elif r is not None and r.status_code in (429, 500, 503):
+            log.info("Gemini %s: %s %s", model, r.status_code,
+                     " ".join(re.findall(r'"(?:quotaId|quotaMetric|quotaValue|retryDelay)": "?([^",}]+)', r.text))[:300])
+            busy = True
+            # kvota tugagan model bir muddat chetga
+            _cool[model] = now + (300 if r.status_code == 429 else 60)
+        elif r is not None and r.status_code != 200:
+            log.info("Gemini %s: %s %s", model, r.status_code, r.text[:200])
+        if r is None or r.status_code != 200:
+            # boshqa model sinab ko'rish uchun ro'yxatni bir marta API'dan olamiz
             if not queue and not discovered:
                 discovered = True
-                queue = [m for m in _discover(s, key) if m not in tried]
-                log.info("Gemini mavjud modellar: %s", queue[:5])
-            continue
-        if r.status_code != 200:
-            log.info("Gemini %s: %s %s", model, r.status_code, r.text[:200])
+                _found[:] = _discover(s, key)
+                queue = [m for m in _found if m not in tried]
+                log.info("Gemini mavjud modellar: %s", queue[:6])
+            if busy:
+                time.sleep(1.5)
             continue
         if model in _resolved:
             _resolved.remove(model)
