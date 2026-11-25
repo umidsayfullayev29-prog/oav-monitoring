@@ -95,8 +95,20 @@ jobs:
           BUSY=$(gh api "repos/${{ github.repository }}/actions/workflows/monitor.yml/runs?per_page=5" \
             --jq '[.workflow_runs[] | select(.id != ${{ github.run_id }}) | select(.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="pending")] | length')
           if [ "$BUSY" = "0" ]; then
-            gh workflow run monitor.yml --ref main -R ${{ github.repository }}
-            echo "Keyingi tekshiruv ishga tushirildi"
+            # GitHub API ba'zan 500 qaytaradi — zanjir uzilmasligi uchun bir necha marta urinamiz
+            for i in 1 2 3 4 5 6 7 8; do
+              if gh api -X POST repos/${{ github.repository }}/actions/workflows/monitor.yml/dispatches -f ref=main; then
+                echo "Keyingi tekshiruv ishga tushirildi"; break
+              fi
+              echo "Urinish $i muvaffaqiyatsiz — kutamiz"; sleep $((i * 20))
+              [ "$i" = "8" ] && exit 1
+            done
           else
             echo "Boshqa tekshiruv bor ($BUSY) — yangisi qo'shilmadi"
+          fi
+          # Gazeta monitoringi ham shu budilnikdan (GitHub jadvali ishlamayapti); xato bo'lsa asosiy zanjirga ta'sir qilmaydi
+          GBUSY=$(gh api "repos/${{ github.repository }}/actions/workflows/gazeta.yml/runs?per_page=3" \
+            --jq '[.workflow_runs[] | select(.status=="queued" or .status=="in_progress")] | length' || echo 1)
+          if [ "$GBUSY" = "0" ]; then
+            gh api -X POST repos/${{ github.repository }}/actions/workflows/gazeta.yml/dispatches -f ref=main || true
           fi
