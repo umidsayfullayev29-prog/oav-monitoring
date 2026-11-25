@@ -1,13 +1,72 @@
 [
- {"url": "https://rasmiy24.uz/uz/article/1185/", "title": "Biznesni ro'yxatga olish", "date": "2026-11-25"},
- {"url": "https://tashkenttimes.uz/economy/19752-s-p-raises-uzbekistan-s-sovereign-credit-rating-to-bb-one-notch-below-investment-grade", "title": "S&P raises Uzbekistan's sovereign credit rating to BB+, one notch below investment grade", "date": null},
- {"url": "https://tashkenttimes.uz/economy/19713-chinese-brands-share-of-car-market-tops-18-as-overall-sales-fall", "title": "Chinese brands' share of car market tops 18% as overall sales fall", "date": null},
- {"url": "https://tashkenttimes.uz/business/19680-foreign-invested-enterprises-in-uzbekistan-reach-23-500", "title": "Foreign-invested enterprises in Uzbekistan reach 23,500", "date": null},
- {"url": "https://batafsil.uz/cat/obchestvo/715-ming-s-mga-yashash-ov-at-avtobus-kommunal-t-lov-va-davolanishga-ancha-pul-oladi/", "title": "715 минг сўмга яшаш: овқат, автобус, коммунал тўлов ва даволанишга қанча пул кетади?", "date": "2026-11-21"},
- {"url": "https://namangan24.uz/turizm/Millions_of_tourists_millions_of_opportunities.html", "title": "Millions of tourists, millions of opportunities", "date": "2026-11-15"},
- {"url": "https://newslineuz.com/article/1269904/", "title": "Uzbekistan produces 7.5 billion eggs over nine months", "date": "2026-11-23"},
- {"url": "https://podrobno.uz/cat/obchestvo/pochemu-borba-s-serym-importom-smartfonov-obernulas-problemami-na-tamozhne/", "title": "Почему борьба с серым импортом смартфонов обернулась проблемами на таможне?", "date": null},
- {"url": "https://rost24.uz/uz/news/2646", "title": "Ҳар бир олимга умрбод илмий рақам берилади, соҳада ягона электрон реестр яратилади", "date": "2026-11-06"},
- {"url": "https://caravan-info.uz/ru/ekonomika/512929-promyshlennoe-proizvodstvo-uzbekistana-prevysilo-1-kvadrillion-sumov.html", "title": "Промышленное производство Узбекистана превысило 1 квадриллион сумов", "date": "2026-11-24"},
- {"url": "https://caravan-info.uz/ru/ekonomika/504590-gde-v-uzbekistane-proizvodyat-bolshe-vsego-yaits-reyting-regionov.html", "title": "Где в Узбекистане производят больше всего яиц: рейтинг регионов", "date": "2026-11-24"}
+ {
+  "url": "https://rasmiy24.uz/uz/article/1185/",
+  "title": "Biznesni ro'yxatga olish",
+  "date": "2026-11-25"
+ },
+ {
+  "url": "https://tashkenttimes.uz/economy/19752-s-p-raises-uzbekistan-s-sovereign-credit-rating-to-bb-one-notch-below-investment-grade",
+  "title": "S&P raises Uzbekistan's sovereign credit rating to BB+, one notch below investment grade",
+  "date": null
+ },
+ {
+  "url": "https://tashkenttimes.uz/economy/19713-chinese-brands-share-of-car-market-tops-18-as-overall-sales-fall",
+  "title": "Chinese brands' share of car market tops 18% as overall sales fall",
+  "date": null
+ },
+ {
+  "url": "https://tashkenttimes.uz/business/19680-foreign-invested-enterprises-in-uzbekistan-reach-23-500",
+  "title": "Foreign-invested enterprises in Uzbekistan reach 23,500",
+  "date": null
+ },
+ {
+  "url": "https://batafsil.uz/cat/obchestvo/715-ming-s-mga-yashash-ov-at-avtobus-kommunal-t-lov-va-davolanishga-ancha-pul-oladi/",
+  "title": "715 минг сўмга яшаш: овқат, автобус, коммунал тўлов ва даволанишга қанча пул кетади?",
+  "date": "2026-11-21"
+ },
+ {
+  "url": "https://namangan24.uz/turizm/Millions_of_tourists_millions_of_opportunities.html",
+  "title": "Millions of tourists, millions of opportunities",
+  "date": "2026-11-15"
+ },
+ {
+  "url": "https://newslineuz.com/article/1269904/",
+  "title": "Uzbekistan produces 7.5 billion eggs over nine months",
+  "date": "2026-11-23"
+ },
+ {
+  "url": "https://podrobno.uz/cat/obchestvo/pochemu-borba-s-serym-importom-smartfonov-obernulas-problemami-na-tamozhne/",
+  "title": "Почему борьба с серым импортом смартфонов обернулась проблемами на таможне?",
+  "date": null
+ },
+ {
+  "url": "https://rost24.uz/uz/news/2646",
+  "title": "Ҳар бир олимга умрбод илмий рақам берилади, соҳада ягона электрон реестр яратилади",
+  "date": "2026-11-06"
+ },
+ {
+  "url": "https://caravan-info.uz/ru/ekonomika/512929-promyshlennoe-proizvodstvo-uzbekistana-prevysilo-1-kvadrillion-sumov.html",
+  "title": "Промышленное производство Узбекистана превысило 1 квадриллион сумов",
+  "date": "2026-11-24"
+ },
+ {
+  "url": "https://caravan-info.uz/ru/ekonomika/504590-gde-v-uzbekistane-proizvodyat-bolshe-vsego-yaits-reyting-regionov.html",
+  "title": "Где в Узбекистане производят больше всего яиц: рейтинг регионов",
+  "date": "2026-11-24"
+ },
+ {
+  "url": "https://xabardor.uz/uz/post/ozbekistonga-mol-gosti-qaysi-davlatlardan-import-qilinmoqda",
+  "title": "Özbekistonga mol göşti qaysi davlatlardan import qilinmoqda?",
+  "date": null
+ },
+ {
+  "url": "https://oyina.uz/uz/posts/35435",
+  "title": "Özbekiston aholisining örtaça yoşi maʼlum qilindi",
+  "date": "2026-11-25"
+ },
+ {
+  "url": "https://newscenter.az/2026/11/24/kisiler-nece-yasinda-evlenirler.html",
+  "title": "Nikahların sayı azalır",
+  "date": "2026-11-24"
+ }
 ]
