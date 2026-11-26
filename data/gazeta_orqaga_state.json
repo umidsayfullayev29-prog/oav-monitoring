@@ -1,0 +1,37 @@
+{
+ "from": "2026-11-01",
+ "to_id": 44945,
+ "cursor": 44663,
+ "retry": [
+  {
+   "ids": [
+    44623
+   ],
+   "caption": "«SariOsiyo» газетасининг 2026 йил 6 ноябрь кунги 29 (8257)-сони мутолаа учун ҳавола қилинмоқда.\n\n\n©️ Газета таҳририят томонидан тақдим этилди.\n\n\n\n〰️〰️〰️〰️〰️\nKanalga ulaniş👇\nhttps://t.me/gazetalar_sharhi\n\n👨‍⚕️ Salomatligingizga e'tiborli bo‘ling!",
+   "tries": 1
+  }
+ ],
+ "sent": [
+  "gazetalar_sharhi/44505",
+  "gazetalar_sharhi/44512",
+  "gazetalar_sharhi/44513",
+  "gazetalar_sharhi/44514",
+  "gazetalar_sharhi/44539",
+  "gazetalar_sharhi/44545",
+  "gazetalar_sharhi/44588",
+  "gazetalar_sharhi/44599",
+  "gazetalar_sharhi/44600",
+  "gazetalar_sharhi/44621",
+  "gazetalar_sharhi/44624",
+  "gazetalar_sharhi/44638",
+  "gazetalar_sharhi/44660"
+ ],
+ "stats": {
+  "posts": 146,
+  "files": 152,
+  "found": 13,
+  "err": 1
+ },
+ "started": "2026-11-26T17:27+05:00",
+ "done": false
+}
