@@ -1,6 +1,6 @@
-# Kanalga bormay qolgan topilmalar (dry)
+# Kanalga bormay qolgan topilmalar (send)
 
-Yuboriladi: 282, o'tkaziladi: 47
+Yuboriladi: 271, o'tkaziladi: 47
 
 ## Yuboriladi
 
@@ -85,23 +85,18 @@ Yuboriladi: 282, o'tkaziladi: 47
 - 2026-11-13 · https://t.me/yurt_dardi/50471 · Ўзбекистонда ҳар 100 кишидан фақат 12 нафари олий маълумотли – статистика
 - 2026-11-13 · https://t.me/Vodiy1uzofficial/112596 · #статистика
 - 2026-11-13 · https://t.me/daryo_kirill/158165 · Ўзбекистонда 15 ёшдан ошганларнинг 12 фоизи олий маълумотга эга — Статқўм
-- 2026-11-13 · https://t.me/gazetauz_uzb/55587 · Ўзбекистон аҳолисининг ҳақиқий сони жорий статистик ҳисоб-китоблардан юқори бўлиб чиқди. А
-- 2026-11-13 · https://t.me/gazetauz_ozb/63085 · O‘zbekiston aholisining haqiqiy soni joriy statistik hisob-kitoblardan yuqori bo‘lib chiqd
 - 2026-11-13 · https://t.me/Jizzaxliklar_yangilikla/13029 · 💼
 - 2026-11-13 · https://t.me/Nigoh_Uz_24/2321 · #Yangiliklar
 - 2026-11-13 · https://t.me/spotuz_uz/20654 · O‘zbekistonning 2025-yildagi YIM hajmi qayta hisob-kitoblardan so‘ng $169 mlrdga yetdi
-- 2026-11-13 · https://t.me/kursivmediauz/31779 · 🤱
 - 2026-11-13 · https://t.me/Nigoh_Uz_24/2328 · #Yangiliklar
 - 2026-11-13 · https://t.me/yuz_official/76510 · Ўзбекистонда 15 ёшдан катта аҳолининг 12 фоизи олий маълумотга эга
 - 2026-11-13 · https://news.net.uz/ekonomika/selskoe-xozyajstvo-uzbekistana-v-novyx-cifrax-kakie-rasxozhdeniya-vyyavila-perepis/ · Сельское хозяйство Узбекистана в новых цифрах. Какие расхождения выявила перепись
 - 2026-11-13 · https://news.net.uz/ekonomika/naselenie-bolshe-prodolzhitelnost-zhizni-vyshe-mnogodetnyx-materej-menshe-chto-pokazala-perepis/ · Население больше, продолжительность жизни выше, многодетных матерей меньше. Что показала п
 - 2026-11-13 · https://t.me/centralasianow/36227 · 🇺🇿
 - 2026-11-13 · https://t.me/ishonchuz_official/18394 · NarxStat платформаси ишга туширилди
-- 2026-11-13 · https://t.me/daryo_kirill/158172 · Ўзбекистон аҳолиси 100 йилда 5 миллиондан 39 миллионга етди
 - 2026-11-13 · https://t.me/xabaruzofficial/116504 · Ўзбекистонда беш ва ундан ортиқ фарзандли аёллар улуши камайган
 - 2026-11-13 · https://t.me/Jizzaxliklar_yangilikla/13049 · 💻
 - 2026-11-13 · https://t.me/xabaruzofficial/116507 · Ўзбекистонда чорва моллари ва паррандалар сони маълум қилинди
-- 2026-11-13 · https://t.me/gazetauz_uzb/55598 · Аҳолини рўйхатга олиш натижаларига кўра, Ўзбекистоннинг қарийб 190 минг аҳолиси хорижда ту
 - 2026-11-13 · https://t.me/gazetauz_ozb/63096 · Aholini ro‘yxatga olish natijalariga ko‘ra, O‘zbekistonning qariyb 190 ming aholisi xorijd
 - 2026-11-13 · https://www.uzdaily.uz/uz/%C3%B6zbekistonda-i%C3%A7imliklar-i%C5%9Flab-%C3%A7iqari%C5%9F-11-foizga-o%C5%9Fdi/ · Özbekistonda içimliklar işlab çiqariş 11 foizga oşdi
 - 2026-11-13 · https://t.me/raketauzb/27695 · Қишлоқ хўжалигини рўйхатга олиш: 985,4 минг гектар ер илгари ҳисобга олинмаган — Миллий ст
@@ -118,7 +113,6 @@ Yuboriladi: 282, o'tkaziladi: 47
 - 2026-11-14 · https://t.me/centralasianow/36235 · 🇺🇿
 - 2026-11-14 · https://t.me/Jizzaxliklar_yangilikla/13142 · 📰
 - 2026-11-14 · https://t.me/gazetauz_ozb/63111 · Ilk bor o‘tkazilgan qishloq xo‘jaligini ro‘yxatga olish tadbiri yer, bog‘lar hajmi, chorva
-- 2026-11-14 · https://t.me/gazetauz_uzb/55613 · Илк бор ўтказилган қишлоқ хўжалигини рўйхатга олиш тадбири ер, боғлар ҳажми, чорва сони, қ
 - 2026-11-14 · https://t.me/Vodiy1uzofficial/112632 · Ичимликлар ишлаб чиқариш бўйича қайси вилоят етакчи?
 - 2026-11-14 · https://t.me/shokirjonov/11425 · Özbekistonda aholi milliy tarkibi e’lon qilindi: özbeklar 89,4 foiz
 - 2026-11-14 · https://t.me/spotuz_uz/20667 · Statistika qo‘mitasi narxlar bo‘yicha ochiq ma’lumotlar platformasini ishga tushirdi
@@ -134,7 +128,6 @@ Yuboriladi: 282, o'tkaziladi: 47
 - 2026-11-14 · https://t.me/daryo_kirill/158210 · Ўзбекистонда қорамолларнинг 87 фоизи деҳқон ва шахсий ёрдамчи хўжаликларда боқилаётгани ан
 - 2026-11-14 · https://t.me/bank_kuni24/19490 · Özbekistonning yalpi içki mahsuloti qayta hisoblaş natijasida 169 mlrd dollardan oşdi
 - 2026-11-14 · https://t.me/Jizzaxliklar_yangilikla/13186 · 💼
-- 2026-11-14 · https://t.me/daryo_kirill/158211 · Ўзбекистонда эркаклар аёллардан 485 минг нафарга кўп экани аниқланди
 - 2026-11-14 · https://t.me/Andijonliklar_TV/73956 · ⚡️
 - 2026-11-14 · https://t.me/Jizzaxliklar_yangilikla/13189 · 💼
 - 2026-11-15 · https://t.me/Jizzaxliklar_yangilikla/13211 · 📰
@@ -162,7 +155,6 @@ Yuboriladi: 282, o'tkaziladi: 47
 - 2026-11-16 · https://t.me/by_gazetasi/45933 · Xorijiy korxonalar eng köp qaysi hududlarda faoliyat yuritmoqda?
 - 2026-11-16 · https://t.me/zolotoygorod/89212 · 🛫
 - 2026-11-16 · https://t.me/yuz_official/76558 · Ўзбекистонликлар энг кўп қайси давлатларга боряпти?
-- 2026-11-16 · https://t.me/kursiv_uz_ru/46227 · 🏭
 - 2026-11-16 · https://t.me/Vodiy1uzofficial/112678 · Хорижий корхоналар энг кўп қайси вилоятда фаолият юритмоқда?
 - 2026-11-16 · https://t.me/latipovjahongir/5251 · ✈️
 - 2026-11-16 · https://t.me/puldangaplashamiz/503 · ✈️
@@ -217,8 +209,6 @@ Yuboriladi: 282, o'tkaziladi: 47
 - 2026-11-20 · https://t.me/jizzaxviloyatihokimligi/44497 · BIZNESNI RÖYXATGA OLIŞ — IQTISODIYOTNING REAL HOLATINI BAHOLAŞDA MUHIM QADAM
 - 2026-11-20 · https://t.me/yaxshiyomon/75164 · 📚
 - 2026-11-20 · https://t.me/foydali_moliya/5317 · O‘zbekiston tashqi savdo aylanmasining qariyb uchdan ikki qismi atigi 10 ta davlat hissasi
-- 2026-11-20 · https://t.me/gazetauz_uzb/55773 · Миллий статистика қўмитаси маҳсулотлар, ёнилғи ва уй-жой нархини кузатиш, ҳудудлар бўйича 
-- 2026-11-20 · https://t.me/gazetauz_ozb/63272 · Milliy statistika qo‘mitasi mahsulotlar, yonilg‘i va uy-joy narxini kuzatish, hududlar bo‘
 - 2026-11-20 · https://t.me/Dunyo_Xabarlari/72636 · 🇺🇿
 - 2026-11-20 · https://t.me/yurt_dardi/51100 · Ўзбекистонда яшаш ва овқатланиш хизматлари 179,7 трлн сўмга етди
 - 2026-11-21 · https://t.me/Jizzaxliklar_yangilikla/13885 · 💼
@@ -282,7 +272,6 @@ Yuboriladi: 282, o'tkaziladi: 47
 - 2026-11-25 · https://t.me/shokirjonov/11487 · Biznesni röyxatga oliş 30 noyabrda tugaydi: Kimlar qatnaşadi va bu nima uçun muhim?
 - 2026-11-25 · https://t.me/beshtiyin/19690 · Бизнесни рўйхатга олишда ҳали қатнашмадингизми?
 - 2026-11-25 · https://batafsil.uz/cat/economic/32-dollarlik-k-mir-anday-ilib-110-dollarga-aylanyapti-zbekiston-issi-khona-bozorida-narkh-navoning-o/ · 32 долларлик кўмир қандай қилиб 110 долларга айланяпти? Ўзбекистон иссиқхона бозорида нарх
-- 2026-11-25 · https://t.me/kursivmediauz/31977 · 📊
 - 2026-11-25 · https://kun.uz/news/2026/11/25/biznesni-royxatga-olish-30-noyabrda-yakunlanadi-u-nima-va-tadbirkorga-nima-beradi-62255 · Biznesni röyxatga oliş 30-noyabrda yakunlanadi: u nima va tadbirkorga nima beradi?
 - 2026-11-25 · https://t.me/Jizzaxliklar_yangilikla/14382 · 💼
 - 2026-11-26 · https://infoedu.uz/talim-xizmatlari-hajmi-34-8-trln-som-2026 · Ta’lim xizmatlari hajmi 9 oyda 34,8 trln so’mga yetdi va 19,6 foizga o’sdi
@@ -299,7 +288,7 @@ Yuboriladi: 282, o'tkaziladi: 47
 - https://t.me/zakovatinfo/24756 — obunachi: 2060
 - https://t.me/logkaleidoscope/1083 — obunachi: 600
 - https://t.me/diyor24uz/60894 — obunachi: 1660
-- https://t.me/ToshkentKanali131/153219 — obunachi: 186
+- https://t.me/ToshkentKanali131/153219 — obunachi: 185
 - https://t.me/Qashqadaryo_Xalqi_qarshiliklar_7/127017 — obunachi: 3960
 - https://t.me/diyor24uz/60926 — obunachi: 1660
 - https://t.me/BUXOROLIKLAR_BUKHARA_BUHOROLIKLA/31275 — obunachi: 4840
@@ -331,7 +320,7 @@ Yuboriladi: 282, o'tkaziladi: 47
 - https://t.me/ovozli24/18932 — obunachi: 601
 - https://t.me/ovozli24/18957 — obunachi: 601
 - https://t.me/tonginews/9269 — obunachi: 2940
-- https://t.me/ToshkentKanali131/153905 — obunachi: 186
+- https://t.me/ToshkentKanali131/153905 — obunachi: 185
 - https://t.me/ovozli24/19182 — obunachi: 601
 - https://t.me/ovozli24/19863 — obunachi: 601
 - https://t.me/zakovatinfo/24889 — obunachi: 2060
