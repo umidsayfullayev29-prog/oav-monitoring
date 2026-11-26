@@ -27,8 +27,29 @@ COMMON = re.compile(r"\b(va|bilan|uchun|ham|ва|билан|учун|ҳам|ва
 
 UZ_RU = set("абвгдеёжзийклмнопрстуфхцчшщъыьэюяўқғҳАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯЎҚҒҲ")
 HI = re.compile(r"[\u00c0-\u00ff]")
-# eski o'zbek shriftlari: cp1251 da yo'q harflar bo'sh o'rinlarga qo'yilgan (cp1251 bo'yicha o'qilgandagi ko'rinishi)
-LEGACY_MAP = {"ґ": "ў", "Ґ": "Ҳ", "і": "қ", "І": "Қ"}
+# eski o'zbek shriftlari: cp1251 da yo'q harflar bo'sh o'rinlarga qo'yilgan. Ikki xil shrift uchradi
+# (26.11 sinovi): A — "Халқ сўзи" turi, B — "Jizzax haqiqati" turi. Qaysi biri mosligi so'zlar bo'yicha tanlanadi.
+LEGACY_MAPS = {
+    "A": {"і": "қ", "\u00b5": "ҳ", "\u03bc": "ҳ", "ґ": "ў", "І": "ғ", "Ј": "Қ", "Ґ": "Ҳ"},
+    "B": {"ї": "қ", "є": "ў", "і": "ҳ", "Є": "Ў", "І": "Ҳ", "Ї": "Қ"},
+}
+LEGACY_MAP = LEGACY_MAPS["A"]
+UZ_COMMON = ["ҳам", "бўлган", "бўлиб", "қилиш", "қилинган", "ҳақида", "кўра", "бўйича", "ўзбекистон",
+             "ҳозир", "қандай", "кўп", "қишлоқ", "ҳудуд", "орқали", "ўз", "йўқ", "кўрсат"]
+
+
+def pick_map(text):
+    """Matn uchun eng mos eski shrift jadvali (yoki None — rus/boshqa til)."""
+    base = decode_legacy(text).lower()
+    best, best_n = None, 0
+    for name, mp in LEGACY_MAPS.items():
+        t = base
+        for a, c in mp.items():
+            t = t.replace(a.lower(), c.lower()) if a.lower() != a else t.replace(a, c)
+        n = sum(len(re.findall(r"\b" + w, t)) for w in UZ_COMMON)
+        if n > best_n:
+            best, best_n = name, n
+    return best if best_n >= 20 else None
 
 
 def is_legacy(t):
@@ -80,10 +101,12 @@ def pdf_report(data, kw):
     pages, total, hits = doc.page_count, "", []
     raw = [clean(p.get_text()) for p in doc]
     legacy = is_legacy(" ".join(raw))
-    odd = odd_letters(decode_legacy(" ".join(raw))) if legacy else []
+    mname = pick_map(" ".join(raw)) if legacy else None
+    mp = LEGACY_MAPS.get(mname) or {}
+    odd = odd_letters(decode_legacy(" ".join(raw), mp)) if legacy else []
     for i, t in enumerate(raw):
         if legacy:
-            t = decode_legacy(t, LEGACY_MAP)
+            t = decode_legacy(t, mp)
         total += " " + t
         m = kw.match(t, trusted=True)
         if m:
@@ -99,7 +122,7 @@ def pdf_report(data, kw):
     else:
         status = "matn bor"
     if legacy and status == "matn bor":
-        status = "matn bor (kodlash tuzatildi)"
+        status = f"matn bor (kodlash tuzatildi{', ' + mname if mname else ''})"
     return {"pages": pages, "chars": chars, "ratio": round(letter_ratio, 2), "common": common,
             "status": status, "hits": hits, "sample": total.strip()[:160], "odd": odd}
 
