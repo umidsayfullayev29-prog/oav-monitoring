@@ -101,12 +101,20 @@ jobs:
           PROBE_MAX_ID: ${{ github.event.inputs.probe_max_id || '0' }}
         run: python tools/gazeta_probe.py
 
+      # Kunlik (21:00 dan keyin) va haftalik (yakshanba) hisobot — faqat shaxsiy chatga
+      - name: Hisobot
+        if: ${{ always() && github.event.inputs.probe != '1' && (github.event.inputs.test || '0') == '0' }}
+        env:
+          GAZETA_BOT_TOKEN: ${{ secrets.GAZETA_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+        run: python -m monitor.gazeta_hisobot
+
       - name: Holatni repoga yozish
         if: always()
         run: |
           git config user.name "oav-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          for f in data/gazeta_state.json data/gazeta_found.jsonl data/gazeta_probe.md data/gazeta_orqaga_state.json data/gazeta_orqaga_found.jsonl; do [ -e "$f" ] && git add "$f"; done
+          for f in data/gazeta_state.json data/gazeta_found.jsonl data/gazeta_probe.md data/gazeta_orqaga_state.json data/gazeta_orqaga_found.jsonl data/gazeta_runs.jsonl data/gazeta_hisobot.json; do [ -e "$f" ] && git add "$f"; done
           if git diff --cached --quiet; then echo "O'zgarish yo'q"; exit 0; fi
           git commit -q -m "Gazeta holati: $(TZ=Asia/Tashkent date '+%d.%m.%Y %H:%M')"
           for i in 1 2 3 4; do git pull -q --rebase && git push -q && exit 0; sleep $((RANDOM % 10 + 3)); done

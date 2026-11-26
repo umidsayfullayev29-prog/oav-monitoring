@@ -39,6 +39,8 @@ TZ = dt.timezone(dt.timedelta(hours=5))
 ROOT = Path(__file__).resolve().parent.parent
 STATE_PATH = ROOT / "data" / "gazeta_state.json"
 LOG_PATH = ROOT / "data" / "gazeta_found.jsonl"
+RUNS_PATH = ROOT / "data" / "gazeta_runs.jsonl"      # har tekshiruv natijasi — kunlik/haftalik hisobot uchun
+OCR_USED = {"n": 0}                                   # shu ishga tushishda Gemini OCR qilingan fayllar
 CHANNEL = os.environ.get("GAZETA_CHANNEL", "gazetalar_sharhi")
 BUDGET = int(os.environ.get("RUN_BUDGET_SEC", "1800"))
 INLINE_MAX = 13_000_000          # base64 bilan 20 MB so'rov chegarasiga sig'ishi uchun
@@ -287,6 +289,7 @@ def analyse_unit(unit, session):
                 found += _hits_from_text(t, i + 1, m["id"], "matn")
             continue
         log.info("%s: matn o'qilmadi (%s) — Gemini OCR", m["id"], note or "skan/bo'sh")
+        OCR_USED["n"] += 1
         for start, data, mime in pdf_chunks(m["data"]):
             what = "PDF fayl" if start == 1 and mime == "application/pdf" else f"PDF faylning {start}-betdan boshlangan qismi"
             d = ask_gemini([("", data, mime)], what, "ushbu fayldagi bet tartib raqami, 1 dan", session)
@@ -300,6 +303,7 @@ def analyse_unit(unit, session):
                 except (TypeError, ValueError):
                     return None
             found += _ocr_hits(d, m["id"], page_of)
+    OCR_USED["n"] += len(photos)
     for k in range(0, len(photos), IMG_BATCH):
         batch = photos[k:k + IMG_BATCH]
         media = [(f"{i + 1}-rasm:", m["data"], "image/jpeg") for i, m in enumerate(batch)]
@@ -501,8 +505,9 @@ async def main_async():
                         st.setdefault("sent", []).append(key)
                         stats["sent"] += 1
                         with LOG_PATH.open("a") as f:
-                            f.write(json.dumps({"key": key, "date": msg.date.isoformat(), "items": its,
-                                                "sent": True}, ensure_ascii=False) + "\n")
+                            f.write(json.dumps({"key": key, "date": msg.date.isoformat(), "name": name,
+                                                "issue": issue, "found_at": dt.datetime.now(TZ).isoformat(timespec="seconds"),
+                                                "items": its, "sent": True}, ensure_ascii=False) + "\n")
                     else:
                         send_failed = True
                 if send_failed and not test_n:   # yuborilmadi — keyingi safar qayta (yuborilganlari takrorlanmaydi)
@@ -516,6 +521,10 @@ async def main_async():
     if not test_n:
         st["last_id"], st["pending"] = last_ok, new_pending[-100:]
         save_state(st)
+        with RUNS_PATH.open("a") as f:
+            f.write(json.dumps({"t": dt.datetime.now(TZ).isoformat(timespec="seconds"), "posts": stats["posts"],
+                                "files": stats["pages"], "found": stats["found"], "sent": stats["sent"],
+                                "err": stats["err"], "ocr": OCR_USED["n"]}) + "\n")
     else:
         dm.send(f"🧪 Gazeta sinovi tugadi: {stats['posts']} post, {stats['pages']} sahifa/fayl, "
                 f"{stats['found']} topilma, xato {stats['err']}. Model: {', '.join(_resolved) or '—'}")
