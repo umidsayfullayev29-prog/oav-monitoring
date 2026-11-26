@@ -1,16 +1,8 @@
 {
  "from": "2026-11-01",
  "to_id": 44945,
- "cursor": 44864,
- "retry": [
-  {
-   "ids": [
-    44623
-   ],
-   "caption": "«SariOsiyo» газетасининг 2026 йил 6 ноябрь кунги 29 (8257)-сони мутолаа учун ҳавола қилинмоқда.\n\n\n©️ Газета таҳририят томонидан тақдим этилди.\n\n\n\n〰️〰️〰️〰️〰️\nKanalga ulaniş👇\nhttps://t.me/gazetalar_sharhi\n\n👨‍⚕️ Salomatligingizga e'tiborli bo‘ling!",
-   "tries": 1
-  }
- ],
+ "cursor": 44945,
+ "retry": [],
  "sent": [
   "gazetalar_sharhi/44505",
   "gazetalar_sharhi/44512",
@@ -22,6 +14,7 @@
   "gazetalar_sharhi/44599",
   "gazetalar_sharhi/44600",
   "gazetalar_sharhi/44621",
+  "gazetalar_sharhi/44623",
   "gazetalar_sharhi/44624",
   "gazetalar_sharhi/44638",
   "gazetalar_sharhi/44660",
@@ -52,14 +45,22 @@
   "gazetalar_sharhi/44805",
   "gazetalar_sharhi/44818",
   "gazetalar_sharhi/44823",
-  "gazetalar_sharhi/44859"
+  "gazetalar_sharhi/44859",
+  "gazetalar_sharhi/44901",
+  "gazetalar_sharhi/44907",
+  "gazetalar_sharhi/44909",
+  "gazetalar_sharhi/44917",
+  "gazetalar_sharhi/44924",
+  "gazetalar_sharhi/44927",
+  "gazetalar_sharhi/44937",
+  "gazetalar_sharhi/44941"
  ],
  "stats": {
-  "posts": 332,
-  "files": 340,
-  "found": 41,
+  "posts": 405,
+  "files": 418,
+  "found": 50,
   "err": 1
  },
  "started": "2026-11-26T17:27+05:00",
- "done": false
+ "done": true
 }
