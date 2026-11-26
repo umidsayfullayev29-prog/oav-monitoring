@@ -21,6 +21,12 @@ on:
       probe_max_id:
         description: "Sinov: shu post raqamigacha (0 = hammasi)"
         default: '0'
+      orqaga_from:
+        description: "Orqaga tekshirishni boshlash: shu sanadan (YYYY-MM-DD). Bir marta beriladi, keyin har soatda o'zi davom etadi"
+        default: ''
+      orqaga_to_id:
+        description: "Orqaga tekshirish: shu post raqamigacha (shu jumladan)"
+        default: ''
 
 permissions:
   contents: write
@@ -33,7 +39,7 @@ concurrency:
 jobs:
   gazeta:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
 
@@ -44,7 +50,9 @@ jobs:
           cache-dependency-path: requirements-gazeta.txt
 
       - name: Kutubxonalar
-        run: pip install -q -r requirements-gazeta.txt
+        run: |
+          date +%s > /tmp/gazeta_t0
+          pip install -q -r requirements-gazeta.txt
 
       - name: Gazetalarni tekshirish
         if: ${{ github.event.inputs.probe != '1' }}
@@ -60,6 +68,26 @@ jobs:
           GAZETA_SINCE: ${{ github.event.inputs.since || '' }}
           RUN_BUDGET_SEC: '2100'
         run: python -m monitor.gazeta
+
+      # Orqaga tekshirish (01.11 dan): soatlik ish tugagach, qolgan vaqtda bo'lib-bo'lib davom etadi.
+      # O'z holati (data/gazeta_orqaga_state.json) — soatlik holatga tegmaydi. Telegram sessiyasi bir vaqtda
+      # ikki joydan ishlatilmasligi uchun alohida workflow emas, shu ishning ichida.
+      - name: Orqaga tekshirish (bo'lib-bo'lib)
+        if: ${{ github.event.inputs.probe != '1' && (github.event.inputs.test || '0') == '0' }}
+        env:
+          TG_API_ID: ${{ secrets.TG_API_ID }}
+          TG_API_HASH: ${{ secrets.TG_API_HASH }}
+          TG_SESSION: ${{ secrets.TG_SESSION }}
+          GAZETA_GEMINI_KEY: ${{ secrets.GEMINI_API_KEY_GAZETA }}
+          GAZETA_BOT_TOKEN: ${{ secrets.GAZETA_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          ORQAGA_FROM: ${{ github.event.inputs.orqaga_from || '' }}
+          ORQAGA_TO_ID: ${{ github.event.inputs.orqaga_to_id || '' }}
+        run: |
+          if [ ! -f data/gazeta_orqaga_state.json ] && [ -z "$ORQAGA_TO_ID" ]; then echo "Orqaga tekshirish yoqilmagan"; exit 0; fi
+          LEFT=$(( 2400 - ( $(date +%s) - $(cat /tmp/gazeta_t0) ) ))
+          if [ "$LEFT" -lt 300 ]; then echo "Vaqt qolmadi — keyingi soatda"; exit 0; fi
+          ORQAGA_BUDGET_SEC=$LEFT python -m monitor.gazeta_orqaga
 
       - name: AI'siz sinov (PDF matni + kalit so'z)
         if: ${{ github.event.inputs.probe == '1' }}
@@ -78,7 +106,7 @@ jobs:
         run: |
           git config user.name "oav-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          for f in data/gazeta_state.json data/gazeta_found.jsonl data/gazeta_probe.md; do [ -e "$f" ] && git add "$f"; done
+          for f in data/gazeta_state.json data/gazeta_found.jsonl data/gazeta_probe.md data/gazeta_orqaga_state.json data/gazeta_orqaga_found.jsonl; do [ -e "$f" ] && git add "$f"; done
           if git diff --cached --quiet; then echo "O'zgarish yo'q"; exit 0; fi
           git commit -q -m "Gazeta holati: $(TZ=Asia/Tashkent date '+%d.%m.%Y %H:%M')"
           for i in 1 2 3 4; do git pull -q --rebase && git push -q && exit 0; sleep $((RANDOM % 10 + 3)); done
