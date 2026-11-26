@@ -1,7 +1,7 @@
 {
  "from": "2026-11-01",
  "to_id": 44945,
- "cursor": 44663,
+ "cursor": 44864,
  "retry": [
   {
    "ids": [
@@ -24,12 +24,40 @@
   "gazetalar_sharhi/44621",
   "gazetalar_sharhi/44624",
   "gazetalar_sharhi/44638",
-  "gazetalar_sharhi/44660"
+  "gazetalar_sharhi/44660",
+  "gazetalar_sharhi/44666",
+  "gazetalar_sharhi/44667",
+  "gazetalar_sharhi/44673",
+  "gazetalar_sharhi/44674",
+  "gazetalar_sharhi/44678",
+  "gazetalar_sharhi/44685",
+  "gazetalar_sharhi/44695",
+  "gazetalar_sharhi/44703",
+  "gazetalar_sharhi/44740",
+  "gazetalar_sharhi/44741",
+  "gazetalar_sharhi/44743",
+  "gazetalar_sharhi/44749",
+  "gazetalar_sharhi/44763",
+  "gazetalar_sharhi/44767",
+  "gazetalar_sharhi/44769",
+  "gazetalar_sharhi/44773",
+  "gazetalar_sharhi/44779",
+  "gazetalar_sharhi/44780",
+  "gazetalar_sharhi/44783",
+  "gazetalar_sharhi/44785",
+  "gazetalar_sharhi/44787",
+  "gazetalar_sharhi/44789",
+  "gazetalar_sharhi/44795",
+  "gazetalar_sharhi/44796",
+  "gazetalar_sharhi/44805",
+  "gazetalar_sharhi/44818",
+  "gazetalar_sharhi/44823",
+  "gazetalar_sharhi/44859"
  ],
  "stats": {
-  "posts": 146,
-  "files": 152,
-  "found": 13,
+  "posts": 332,
+  "files": 340,
+  "found": 41,
   "err": 1
  },
  "started": "2026-11-26T17:27+05:00",
