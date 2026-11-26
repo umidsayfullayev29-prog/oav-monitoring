@@ -24,6 +24,7 @@ on:
 
 permissions:
   contents: write
+  actions: write      # o'z budilnigi keyingi tekshiruvni ishga tushirishi uchun (busiz 403 xato)
 
 concurrency:
   group: gazeta-monitor
