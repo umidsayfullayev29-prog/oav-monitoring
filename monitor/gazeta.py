@@ -3,8 +3,9 @@
 Ishlash tartibi:
   1. Zaxira Telegram akkaunti (Telethon, TG_SESSION) orqali kanaldagi yangi postlarni o'qiydi.
   2. Har bir post (albom bo'lsa — butun albom) rasmlari va PDF fayllarini yuklab oladi.
-  3. Sahifalarni Gemini'ga beradi: matnni o'qib (OCR), qo'mita yoki uning ma'lumotlari
-     tilga olingan maqolalarni topadi.
+  3. PDF ichidagi matndan qo'mita nomlarini kalit so'z bilan qidiradi (AI'siz, config/gazeta_keywords.yml).
+     Eski shrift kodlashi bo'lsa tuzatadi (monitor/gazeta_text.py). Shunda ham o'qilmasa (skan) yoki post
+     rasm bo'lsa — Gemini faqat matnni o'qiydi (OCR); qo'mita tilga olinganmi — baribir kalit so'z hal qiladi.
   4. Topilganlarni faqat shaxsiy chatga (TG_CHAT_ID) yuboradi — kanalga yubormaydi.
 
 Asosiy monitoringdan to'liq ajratilgan: o'z boti (GAZETA_BOT_TOKEN), o'z Gemini kaliti/loyihasi
@@ -28,8 +29,12 @@ import datetime as dt
 from pathlib import Path
 
 import requests
+import yaml
+
+from monitor import gazeta_text as gt
 
 log = logging.getLogger("oav.gazeta")
+KW = gt.Matcher(yaml.safe_load((Path(__file__).resolve().parent.parent / "config/gazeta_keywords.yml").read_text("utf-8")))
 TZ = dt.timezone(dt.timedelta(hours=5))
 ROOT = Path(__file__).resolve().parent.parent
 STATE_PATH = ROOT / "data" / "gazeta_state.json"
@@ -43,25 +48,16 @@ MAX_TRIES = 12                   # shuncha marta Gemini xato bersa — post tash
 GEMINI_API = "https://generativelanguage.googleapis.com/v1beta"
 GEMINI_MODELS = [m.strip() for m in os.environ.get("GAZETA_GEMINI_MODEL", "gemini-3.5-flash,gemini-3.8-flash").split(",")
                  if m.strip()]
-KW_RE = re.compile(r"(statisti\w*|статисти\w*|статкўм\w*|statqo\w*|нацкомстат\w*|stat\.uz)", re.I)
 
-PROMPT = """Sen O'zbekiston Milliy statistika qo'mitasi matbuot xizmati uchun gazetalar monitoringini qilasan.
-Senga gazeta sahifalari beriladi ({what}). Har bir sahifani diqqat bilan o'qi (matn rasmda bo'lishi mumkin).
-
-Quyidagi maqolalarni top:
-- Milliy statistika qo'mitasi (avvalgi Davlat statistika qo'mitasi / Statistika agentligi, Нацкомстат, Госкомстат, stat.uz)
-  nomi tilga olingan yoki uning ma'lumotiga tayangan maqolalar;
-- qo'mita faoliyati: aholini, biznesni, qishloq xo'jaligini ro'yxatga olish (perepis), qo'mita rahbarlari,
-  hududiy statistika boshqarmalari;
-- manbasi aytilmagan bo'lsa ham, O'zbekiston bo'yicha rasmiy statistik raqamlar (aholi, tug'ilish, nikoh,
-  narxlar/inflyatsiya, YaIM, sanoat, qishloq xo'jaligi, tashqi savdo, ish haqi, bandlik, turizm va h.k.) keltirilgan maqolalar.
-Topma: boshqa davlat statistikasi, Markaziy bank kursi, prognozlar, kompaniya hisobotlari, reklama, "statistika" so'zi
-umumiy ma'noda (masalan, sport statistikasi) ishlatilgan joylar.
-
-Faqat JSON qaytar:
-{{"newspaper": "gazeta nomi (birinchi sahifadan)", "date": "gazeta soni chiqqan sana, birinchi sahifadan, dd.mm.yyyy (topilmasa bo'sh)", "items": [{{"page": <{page_hint}>, "title": "maqola sarlavhasi",
-"quote": "maqoladan aynan iqtibos, 1-3 gap, asl tilida", "reason": "o'zbekcha qisqa izoh"}}]}}
-Hech narsa topilmasa: {{"newspaper": "...", "date": "...", "items": []}}"""
+# Gemini faqat MATN O'QIYDI (OCR): qaror qabul qilmaydi. Qo'mita tilga olinganmi — kalit so'zlar hal qiladi.
+OCR_PROMPT = """Senga gazeta sahifalari beriladi ({what}). Sen faqat matnni o'qib beruvchisan (OCR), izoh berma.
+Sahifalardagi quyidagi so'zlardan birortasi bor HAR BIR joyni toping va o'sha gapni (1-3 gap) AYNAN,
+asl tilida va asl yozuvida (lotin/kirill), tarjimasiz va o'zgartirmasdan ko'chiring:
+statistika, статистика, statistik, статистик, qo'mita, қўмита, комитет, нацкомстат, госкомстат, stat.uz,
+ro'yxatga olish, рўйхатга олиш, перепись, census.
+Faqat JSON qaytar: {{"newspaper": "gazeta nomi (bosh sahifadan)", "date": "soni chiqqan sana dd.mm.yyyy (bo'lmasa bo'sh)",
+"passages": [{{"page": <{page_hint}>, "text": "aynan ko'chirilgan gap"}}]}}
+Bunday so'z bo'lmasa: {{"newspaper": "...", "date": "...", "passages": []}}"""
 
 
 # ---------- Telegram Bot API (faqat shaxsiy chat) ----------
@@ -234,11 +230,8 @@ def pdf_chunks(data):
     return out
 
 
-def ask_gemini(parts_media, what, page_hint, caption, session):
-    text = PROMPT.format(what=what, page_hint=page_hint)
-    if caption:
-        text += "\n\nPOST IZOHI (kanal yozgan):\n" + caption[:3000]
-    parts = [{"text": text}]
+def ask_gemini(parts_media, what, page_hint, session):
+    parts = [{"text": OCR_PROMPT.format(what=what, page_hint=page_hint)}]
     for label, data, mime in parts_media:
         if label:
             parts.append({"text": label})
@@ -252,65 +245,110 @@ def ask_gemini(parts_media, what, page_hint, caption, session):
     return d if isinstance(d, dict) else None
 
 
+def _hits_from_text(text, page, msg_id, how):
+    out = []
+    for word, st, en in gt.find_all(KW, text):
+        sn = gt.snippet(text, st, en, 160).replace("<b>", "<b><u>").replace("</b>", "</u></b>")
+        out.append({"msg_id": msg_id, "page": page, "word": word, "quote": sn, "how": how})
+    return out
+
+
+def _ocr_hits(d, msg_id, page_of):
+    """Gemini o'qigan parchalardan faqat kalit so'z bilan tasdiqlanganlari."""
+    out = []
+    for ps in d.get("passages") or []:
+        t = gt.clean_page(str(ps.get("text") or ""))
+        if not t:
+            continue
+        for h in _hits_from_text(t, page_of(ps.get("page")), msg_id, "ocr")[:1]:
+            out.append(h)
+    return out
+
+
 def analyse_unit(unit, session):
     """unit: {"msgs": [{"id", "kind": photo|pdf, "data": bytes}], "caption"}.
-    Topilmalar ro'yxati [{"msg_id", "page", "title", "quote", "reason", "newspaper"}] yoki xato bo'lsa None."""
-    found = []
+    1) PDF matni + kalit so'z (AI'siz); 2) eski shrift kodlashi tuzatiladi; 3) shunda ham o'qilmasa
+    yoki rasm bo'lsa — Gemini faqat matnni o'qiydi, qarorni kalit so'zlar qiladi.
+    Natija: (topilmalar, {"newspaper", "date"} — Gemini o'qigan bo'lsa) yoki Gemini xatosida None."""
+    found, meta = [], {}
     photos = [m for m in unit["msgs"] if m["kind"] == "photo"]
     pdfs = [m for m in unit["msgs"] if m["kind"] == "pdf"]
+    for m in pdfs:
+        pages = []
+        try:
+            import fitz  # PyMuPDF
+            pages = [gt.clean_page(p.get_text()) for p in fitz.open(stream=m["data"], filetype="pdf")]
+        except Exception as e:  # noqa
+            log.info("PDF ochilmadi (%s): %s", m["id"], e)
+        pages, note = gt.fix_text(pages)
+        if pages and gt.readable(pages):
+            log.info("%s: matn (%d bet%s)", m["id"], len(pages), ", " + note if note else "")
+            for i, t in enumerate(pages):
+                found += _hits_from_text(t, i + 1, m["id"], "matn")
+            continue
+        log.info("%s: matn o'qilmadi (%s) — Gemini OCR", m["id"], note or "skan/bo'sh")
+        for start, data, mime in pdf_chunks(m["data"]):
+            what = "PDF fayl" if start == 1 and mime == "application/pdf" else f"PDF faylning {start}-betdan boshlangan qismi"
+            d = ask_gemini([("", data, mime)], what, "ushbu fayldagi bet tartib raqami, 1 dan", session)
+            if d is None:
+                return None
+            meta = meta or {"newspaper": d.get("newspaper"), "date": d.get("date")}
+
+            def page_of(pg, start=start):
+                try:
+                    return int(pg) + start - 1
+                except (TypeError, ValueError):
+                    return None
+            found += _ocr_hits(d, m["id"], page_of)
     for k in range(0, len(photos), IMG_BATCH):
         batch = photos[k:k + IMG_BATCH]
         media = [(f"{i + 1}-rasm:", m["data"], "image/jpeg") for i, m in enumerate(batch)]
-        d = ask_gemini(media, f"{len(batch)} ta rasm, har biri bitta gazeta sahifasi",
-                       "rasm tartib raqami, 1 dan", unit["caption"], session)
+        d = ask_gemini(media, f"{len(batch)} ta rasm, har biri bitta gazeta sahifasi", "rasm tartib raqami, 1 dan", session)
         if d is None:
             return None
-        for it in d.get("items") or []:
+        meta = meta or {"newspaper": d.get("newspaper"), "date": d.get("date")}
+        for ps in d.get("passages") or []:
             try:
-                idx = int(it.get("page") or 1) - 1
+                idx = int(ps.get("page") or 1) - 1
             except (TypeError, ValueError):
                 idx = 0
-            m = batch[min(max(idx, 0), len(batch) - 1)]
-            found.append({**it, "msg_id": m["id"], "page": None, "newspaper": d.get("newspaper"),
-                          "issue_date": d.get("date")})
-    for m in pdfs:
-        for start, data, mime in pdf_chunks(m["data"]):
-            what = "PDF fayl" if start == 1 and mime == "application/pdf" else f"PDF faylning {start}-betdan boshlangan qismi"
-            d = ask_gemini([("", data, mime)], what, "ushbu fayldagi bet tartib raqami, 1 dan", unit["caption"], session)
-            if d is None:
-                return None
-            for it in d.get("items") or []:
-                try:
-                    pg = int(it.get("page")) + start - 1
-                except (TypeError, ValueError):
-                    pg = None
-                found.append({**it, "msg_id": m["id"], "page": pg, "newspaper": d.get("newspaper"),
-                              "issue_date": d.get("date")})
-    return found
+            mm = batch[min(max(idx, 0), len(batch) - 1)]
+            found += _ocr_hits({"passages": [ps]}, mm["id"], lambda pg: None)
+    return found, meta
 
 
-def post_text(link, date, items):
-    """Sarlavha: gazeta nomi va soni chiqqan sana (gazetaning o'zidan; topilmasa — kanaldagi post sanasi)."""
-    first = items[0]
-    name = (first.get("newspaper") or "").strip() or "Gazeta"
-    raw = str(first.get("issue_date") or "")
-    m = re.search(r"(\d{1,2})[./-](\d{1,2})[./-](\d{4})", raw)
-    iso = re.search(r"(\d{4})-(\d{1,2})-(\d{1,2})", raw)
+def paper_name(caption, fname):
+    """Gazeta nomi: post izohidagi «...» yoki fayl nomi."""
+    m = re.search(r"[«“\"]([^»”\"]{2,60})[»”\"]", caption or "")
     if m:
-        issue = f"{int(m.group(1)):02d}.{int(m.group(2)):02d}.{m.group(3)}"
-    elif iso:
-        issue = f"{int(iso.group(3)):02d}.{int(iso.group(2)):02d}.{iso.group(1)}"
-    else:
-        issue = date.strftime("%d.%m.%Y")
-    lines = [html.escape(link), f"📰 <b>{html.escape(name, quote=False)}, {issue}</b>"]
+        return m.group(1).strip()
+    stem = re.sub(r"\.pdf$", "", fname or "", flags=re.I)
+    stem = re.sub(r"[_\-]+", " ", stem).strip()
+    return stem[:60]
+
+
+def paper_date(*texts):
+    """Soni chiqqan sana: izoh/fayl nomidagi dd.mm.yyyy (yoki dd-mm-yy)."""
+    for t in texts:
+        m = re.search(r"\b(\d{1,2})[./-](\d{1,2})[./-](\d{4}|\d{2})\b", t or "")
+        if m:
+            y = m.group(3) if len(m.group(3)) == 4 else "20" + m.group(3)
+            if 1 <= int(m.group(2)) <= 12 and 1 <= int(m.group(1)) <= 31:
+                return f"{int(m.group(1)):02d}.{int(m.group(2)):02d}.{y}"
+        m = re.search(r"(\d{4})-(\d{1,2})-(\d{1,2})", t or "")
+        if m:
+            return f"{int(m.group(3)):02d}.{int(m.group(2)):02d}.{m.group(1)}"
+    return None
+
+
+def post_text(link, name, issue, items):
+    """Sarlavha: gazeta nomi va soni chiqqan sana; keyin bet va kalit so'z atrofidagi parcha."""
+    lines = [html.escape(link), f"📰 <b>{html.escape(name or 'Gazeta', quote=False)}, {issue}</b>"]
     q = []
     for it in items[:4]:
-        head = ", ".join(x for x in [(it.get("newspaper") or "").strip(),
-                                     f"{it['page']}-bet" if it.get("page") else ""] if x)
-        quote = html.escape((it.get("quote") or "").strip(), quote=False)[:500]
-        quote = KW_RE.sub(lambda mm: f"<b><u>{mm.group(0)}</u></b>", quote)
-        q.append((f"📄 {html.escape(head, quote=False)}: " if head else "") + quote)
-    lines.append("<blockquote>" + "\n\n".join(q)[:1500] + "</blockquote>")
+        head = f"{it['page']}-bet" if it.get("page") else ""
+        q.append((f"📄 {head}: " if head else "📄 ") + it["quote"][:600])
+    lines.append("<blockquote>" + "\n\n".join(q)[:2500] + "</blockquote>")
     return "\n".join(lines)
 
 
@@ -413,8 +451,11 @@ async def main_async():
                 if not kind:
                     continue
                 data = await client.download_media(m, file=bytes)
+                fname = ""
+                for a in (getattr(getattr(m, "document", None), "attributes", None) or []):
+                    fname = getattr(a, "file_name", "") or fname
                 if data:
-                    items.append({"id": m.id, "kind": kind, "data": data})
+                    items.append({"id": m.id, "kind": kind, "data": data, "fname": fname})
             caption = u.get("caption") or ""
             if not items:
                 if u not in pend:
@@ -435,6 +476,7 @@ async def main_async():
                         dm.send(f"⚠️ Gazeta: post {tries} marta tekshirilmadi (Gemini xatosi), tashlab yuborildi:\n"
                                 + html.escape(link))
             else:
+                res, meta = res
                 by_msg, send_failed = {}, False
                 for it in res:
                     by_msg.setdefault(it["msg_id"], []).append(it)
@@ -443,7 +485,11 @@ async def main_async():
                     key = f"{CHANNEL}/{mid}"
                     msg = next((m for m in ms if m.id == mid), ms[0])
                     link = f"https://t.me/{CHANNEL}/{mid}"
-                    text = post_text(link, msg.date.astimezone(TZ), its)
+                    fname = next((x["fname"] for x in items if x["id"] == mid), "")
+                    name = (meta.get("newspaper") or "").strip() or paper_name(caption, fname)
+                    issue = (paper_date(caption, fname, meta.get("date") or "")
+                             or msg.date.astimezone(TZ).strftime("%d.%m.%Y"))
+                    text = post_text(link, name, issue, its)
                     if test_n:
                         dm.send("🧪 Sinov\n" + text)
                         continue

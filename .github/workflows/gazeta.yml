@@ -2,9 +2,11 @@ name: Gazeta monitoring
 
 # @gazetalar_sharhi — gazeta sahifalari (rasm/PDF) Gemini orqali o'qiladi. Natija faqat shaxsiy chatga.
 # Asosiy OAV monitoringidan butunlay alohida: o'z boti, o'z Gemini kaliti, o'z holati (data/gazeta_state.json).
+# Har soatda: o'z budilnigi (pastdagi "keyingisi" — asosiy monitoring budilnigiga ulanmagan) +
+# zaxira sifatida GitHub jadvali (bu repoda ishonchsiz).
 on:
-  # Jadval (cron) vaqtincha o'chirilgan (26.11): Gemini lite modellari noto'g'ri topilmalar berdi,
-  # AI'siz usul sinalmoqda. Hozir faqat qo'lda ishga tushadi.
+  schedule:
+    - cron: '23 * * * *'
   workflow_dispatch:
     inputs:
       test:
@@ -90,3 +92,41 @@ jobs:
           curl -s -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
             --data-urlencode "chat_id=${TG_CHAT_ID}" \
             --data-urlencode "text=⚠️ Gazeta monitoringi xato berdi: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" > /dev/null
+
+  # Gazetaning o'z budilnigi: ish boshlanganidan ~1 soat o'tib keyingisini ishga tushiradi.
+  # Sinov (test, probe) ishga tushishlarida ishlamaydi.
+  keyingisi:
+    needs: gazeta
+    if: ${{ always() && (github.event_name == 'schedule' || (github.event.inputs.test == '0' && github.event.inputs.probe != '1')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - name: Kutish va keyingi gazeta tekshiruvini ishga tushirish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          R=repos/${{ github.repository }}
+          START=$(gh api "$R/actions/runs/${{ github.run_id }}/jobs" --jq '.jobs[] | select(.name=="gazeta") | .started_at')
+          ELAPSED=$(( $(date +%s) - $(date -d "$START" +%s) ))
+          WAIT=$(( 3600 - ELAPSED - 60 ))
+          if [ "$WAIT" -gt 0 ]; then echo "Kutish: $WAIT s"; sleep "$WAIT"; fi
+          BUSY=$(gh api "$R/actions/workflows/gazeta.yml/runs?per_page=5" \
+            --jq '[.workflow_runs[] | select(.id != ${{ github.run_id }}) | select(.status=="queued" or .status=="in_progress" or .status=="waiting" or .status=="pending")] | length')
+          if [ "$BUSY" != "0" ]; then echo "Boshqa gazeta tekshiruvi bor ($BUSY) — yangisi qo'shilmadi"; exit 0; fi
+          for i in 1 2 3 4 5 6 7 8; do
+            if gh api -X POST "$R/actions/workflows/gazeta.yml/dispatches" -f ref=main; then
+              echo "Keyingi gazeta tekshiruvi ishga tushirildi"; exit 0
+            fi
+            echo "Urinish $i muvaffaqiyatsiz — kutamiz"; sleep $((i * 20))
+          done
+          exit 1
+
+      - name: Budilnik ishlamasa — xabar
+        if: failure()
+        env:
+          TG_BOT_TOKEN: ${{ secrets.GAZETA_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TG_CHAT_ID}" \
+            --data-urlencode "text=⛔️ Gazeta zanjiri uzildi: keyingi tekshiruv ishga tushmadi. ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" > /dev/null
