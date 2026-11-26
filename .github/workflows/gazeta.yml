@@ -1,7 +1,7 @@
 name: Gazeta monitoring
 
-# @gazetalar_sharhi — gazeta sahifalari (rasm/PDF) Gemini orqali o'qiladi.
-# Asosiy OAV monitoringidan butunlay alohida: o'z holati (data/gazeta_state.json), o'z navbati.
+# @gazetalar_sharhi — gazeta sahifalari (rasm/PDF) Gemini orqali o'qiladi. Natija faqat shaxsiy chatga.
+# Asosiy OAV monitoringidan butunlay alohida: o'z boti, o'z Gemini kaliti, o'z holati (data/gazeta_state.json).
 on:
   schedule:
     - cron: '12,42 * * * *'
@@ -42,10 +42,10 @@ jobs:
           TG_API_ID: ${{ secrets.TG_API_ID }}
           TG_API_HASH: ${{ secrets.TG_API_HASH }}
           TG_SESSION: ${{ secrets.TG_SESSION }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          # faqat gazetaning o'z boti va Gemini kaliti — asosiy monitoring bilan umumiy emas
+          GAZETA_GEMINI_KEY: ${{ secrets.GEMINI_API_KEY_GAZETA }}
+          GAZETA_BOT_TOKEN: ${{ secrets.GAZETA_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
-          ARCHIVE_CHAT: '@statistikaoav'
           GAZETA_TEST: ${{ github.event.inputs.test || '0' }}
           GAZETA_SINCE: ${{ github.event.inputs.since || '' }}
           RUN_BUDGET_SEC: '2100'
@@ -65,7 +65,7 @@ jobs:
       - name: Xato haqida xabar
         if: failure()
         env:
-          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_BOT_TOKEN: ${{ secrets.GAZETA_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
         run: |
           curl -s -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
