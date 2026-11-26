@@ -3,8 +3,8 @@ name: Gazeta monitoring
 # @gazetalar_sharhi — gazeta sahifalari (rasm/PDF) Gemini orqali o'qiladi. Natija faqat shaxsiy chatga.
 # Asosiy OAV monitoringidan butunlay alohida: o'z boti, o'z Gemini kaliti, o'z holati (data/gazeta_state.json).
 on:
-  schedule:
-    - cron: '12,42 * * * *'
+  # Jadval (cron) vaqtincha o'chirilgan (26.11): Gemini lite modellari noto'g'ri topilmalar berdi,
+  # AI'siz usul sinalmoqda. Hozir faqat qo'lda ishga tushadi.
   workflow_dispatch:
     inputs:
       test:
@@ -13,6 +13,12 @@ on:
       since:
         description: "Birinchi ishga tushishda shu sanadan boshlab (YYYY-MM-DD, bo'sh = oxirgi 1 kun)"
         default: ''
+      probe:
+        description: "AI'siz sinov: 1 = PDF matnidan kalit so'z qidirish (Gemini yo'q, holat o'zgarmaydi)"
+        default: '0'
+      probe_max_id:
+        description: "Sinov: shu post raqamigacha (0 = hammasi)"
+        default: '0'
 
 permissions:
   contents: write
@@ -38,6 +44,7 @@ jobs:
         run: pip install -q -r requirements-gazeta.txt
 
       - name: Gazetalarni tekshirish
+        if: ${{ github.event.inputs.probe != '1' }}
         env:
           TG_API_ID: ${{ secrets.TG_API_ID }}
           TG_API_HASH: ${{ secrets.TG_API_HASH }}
@@ -51,12 +58,24 @@ jobs:
           RUN_BUDGET_SEC: '2100'
         run: python -m monitor.gazeta
 
+      - name: AI'siz sinov (PDF matni + kalit so'z)
+        if: ${{ github.event.inputs.probe == '1' }}
+        env:
+          TG_API_ID: ${{ secrets.TG_API_ID }}
+          TG_API_HASH: ${{ secrets.TG_API_HASH }}
+          TG_SESSION: ${{ secrets.TG_SESSION }}
+          GAZETA_BOT_TOKEN: ${{ secrets.GAZETA_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          PROBE_SINCE: ${{ github.event.inputs.since || '2026-11-25' }}
+          PROBE_MAX_ID: ${{ github.event.inputs.probe_max_id || '0' }}
+        run: python tools/gazeta_probe.py
+
       - name: Holatni repoga yozish
         if: always()
         run: |
           git config user.name "oav-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/gazeta_state.json data/gazeta_found.jsonl 2>/dev/null || true
+          for f in data/gazeta_state.json data/gazeta_found.jsonl data/gazeta_probe.md; do [ -e "$f" ] && git add "$f"; done
           if git diff --cached --quiet; then echo "O'zgarish yo'q"; exit 0; fi
           git commit -q -m "Gazeta holati: $(TZ=Asia/Tashkent date '+%d.%m.%Y %H:%M')"
           for i in 1 2 3 4; do git pull -q --rebase && git push -q && exit 0; sleep $((RANDOM % 10 + 3)); done
