@@ -59,9 +59,9 @@ Topma: boshqa davlat statistikasi, Markaziy bank kursi, prognozlar, kompaniya hi
 umumiy ma'noda (masalan, sport statistikasi) ishlatilgan joylar.
 
 Faqat JSON qaytar:
-{{"newspaper": "gazeta nomi (birinchi sahifadan)", "items": [{{"page": <{page_hint}>, "title": "maqola sarlavhasi",
+{{"newspaper": "gazeta nomi (birinchi sahifadan)", "date": "gazeta soni chiqqan sana, birinchi sahifadan, dd.mm.yyyy (topilmasa bo'sh)", "items": [{{"page": <{page_hint}>, "title": "maqola sarlavhasi",
 "quote": "maqoladan aynan iqtibos, 1-3 gap, asl tilida", "reason": "o'zbekcha qisqa izoh"}}]}}
-Hech narsa topilmasa: {{"newspaper": "...", "items": []}}"""
+Hech narsa topilmasa: {{"newspaper": "...", "date": "...", "items": []}}"""
 
 
 # ---------- Telegram Bot API (faqat shaxsiy chat) ----------
@@ -271,7 +271,8 @@ def analyse_unit(unit, session):
             except (TypeError, ValueError):
                 idx = 0
             m = batch[min(max(idx, 0), len(batch) - 1)]
-            found.append({**it, "msg_id": m["id"], "page": None, "newspaper": d.get("newspaper")})
+            found.append({**it, "msg_id": m["id"], "page": None, "newspaper": d.get("newspaper"),
+                          "issue_date": d.get("date")})
     for m in pdfs:
         for start, data, mime in pdf_chunks(m["data"]):
             what = "PDF fayl" if start == 1 and mime == "application/pdf" else f"PDF faylning {start}-betdan boshlangan qismi"
@@ -283,14 +284,25 @@ def analyse_unit(unit, session):
                     pg = int(it.get("page")) + start - 1
                 except (TypeError, ValueError):
                     pg = None
-                found.append({**it, "msg_id": m["id"], "page": pg, "newspaper": d.get("newspaper")})
+                found.append({**it, "msg_id": m["id"], "page": pg, "newspaper": d.get("newspaper"),
+                              "issue_date": d.get("date")})
     return found
 
 
 def post_text(link, date, items):
+    """Sarlavha: gazeta nomi va soni chiqqan sana (gazetaning o'zidan; topilmasa — kanaldagi post sanasi)."""
     first = items[0]
-    title = html.escape((first.get("title") or "").strip(), quote=False) or "Gazeta sahifasida qo'mita ma'lumoti"
-    lines = [html.escape(link), f"📰 <b>{title}</b>", f"🗓 {date.strftime('%d.%m.%Y')}"]
+    name = (first.get("newspaper") or "").strip() or "Gazeta"
+    raw = str(first.get("issue_date") or "")
+    m = re.search(r"(\d{1,2})[./-](\d{1,2})[./-](\d{4})", raw)
+    iso = re.search(r"(\d{4})-(\d{1,2})-(\d{1,2})", raw)
+    if m:
+        issue = f"{int(m.group(1)):02d}.{int(m.group(2)):02d}.{m.group(3)}"
+    elif iso:
+        issue = f"{int(iso.group(3)):02d}.{int(iso.group(2)):02d}.{iso.group(1)}"
+    else:
+        issue = date.strftime("%d.%m.%Y")
+    lines = [html.escape(link), f"📰 <b>{html.escape(name, quote=False)}, {issue}</b>"]
     q = []
     for it in items[:4]:
         head = ", ".join(x for x in [(it.get("newspaper") or "").strip(),
