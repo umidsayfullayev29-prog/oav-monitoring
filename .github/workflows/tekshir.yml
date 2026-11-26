@@ -10,7 +10,7 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -31,7 +31,16 @@ jobs:
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           ARCHIVE_CHAT: '@statistikaoav'
         run: python tools/send_manual.py
-      - run: |
+      # eski "bir xil xabar" xatosi tufayli bormay qolganlar: missed-dry — faqat ro'yxat, missed — yuborish
+      - if: ${{ inputs.mode == 'missed-dry' || inputs.mode == 'missed' }}
+        env:
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          ARCHIVE_CHAT: '@statistikaoav'
+          MODE: ${{ inputs.mode }}
+        run: python tools/send_missed.py "$([ "$MODE" = missed ] && echo send || echo dry)"
+      - if: always()
+        run: |
           git config user.name "oav-bot"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/review_check.md data/manual_sent.txt data/peek.md 2>/dev/null || true; git commit -qm "Ko'rib chiqish ro'yxati tekshirildi" || exit 0
+          for f in data/review_check.md data/manual_sent.txt data/peek.md data/missed_report.md data/backfill_sent.txt; do [ -e "$f" ] && git add "$f"; done; git commit -qm "Ko'rib chiqish ro'yxati tekshirildi" || exit 0
           for i in 1 2 3 4 5; do git pull -q --rebase && git push -q && exit 0; sleep 5; done

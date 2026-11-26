@@ -72,12 +72,29 @@ def image_key(url: str) -> str:
     # saytning umumiy (har bir maqolada bir xil) rasmi — solishtirishga yaramaydi
     if re.search(r"(logo|default|placeholder|og[-_]?image|share|no[-_]?image|noimage|cover|banner|favicon)", name):
         return ""
+    if _img_generic(name):
+        return ""
     return name if len(name) >= 6 else ""
 
 
+GENERIC_IMG = re.compile(r"(^social$|opengraph|^images?[-_]?\d*[-_]?$)")
+
+
+def _img_generic(name: str) -> bool:
+    """Saytning umumiy rasmi (har maqolada bir xil) — eski yozuvlardagi kalit uchun ham tekshiriladi."""
+    return not name or bool(GENERIC_IMG.search(name))
+
+
 def outlet(rec: dict) -> str:
-    """Nashr: sayt domeni yoki (aniqlangan bo'lsa) Telegram kanali egasi bo'lgan sayt."""
-    return rec.get("outlet") or site_key(rec["url"])
+    """Nashr: sayt domeni yoki (aniqlangan bo'lsa) Telegram kanali egasi bo'lgan sayt.
+
+    Telegram kanalining egasi boshqa Telegram havolasi (taklif havolasi, boshqa kanal) bo'la olmaydi:
+    bunday yozuv bo'lsa, kanalning o'zi nashr hisoblanadi."""
+    o = rec.get("outlet") or site_key(rec["url"])
+    own = site_key(rec["url"])
+    if own.startswith("t.me/") and o.startswith("t.me") and o != own:
+        return own
+    return o
 
 
 def _close(a, b, hours):
@@ -119,7 +136,43 @@ def _slug(u):
 
 def _url_id(u):
     m = re.search(r"[-/_](\d{3,})(?:\.html?|/)?$", up.urlsplit(u).path)
-    return m.group(1) if m else None
+    if not m or re.fullmatch(r"(19|20)\d\d", m.group(1)):     # ...-2026 — yil, maqola raqami emas
+        return None
+    return m.group(1)
+
+
+def _num_close(x, y):
+    try:
+        fx, fy = float(x), float(y)
+    except ValueError:
+        return x == y
+    return fx == fy or (max(fx, fy) > 0 and abs(fx - fy) / max(fx, fy) < 0.01)   # 357,883 va 357,9
+
+
+def _sig_nums(r):
+    """Solishtirish uchun raqamlar: 31 gacha butun sonlar (kun, sana: "15-oktabrdan 30-noyabrgacha")
+    ko'p xabarda bir xil bo'ladi — hisobga olinmaydi."""
+    out = set()
+    for n in r.get("nums") or []:
+        if "." not in n and n.isdigit() and int(n) <= 31:
+            continue
+        out.add(n)
+    return out
+
+
+def _img_same_story(a, b, tna, tnb):
+    """Bir xil rasm — faqat boshqa belgilar zid bo'lmasa. Ba'zi saytlar (uzdaily) bitta stok rasmni
+    turli xabarlarga qo'yadi, ba'zilarida rasm umumiy ("social", "opengraph-image")."""
+    if _img_generic(a.get("img") or ""):
+        return False
+    if tna and tnb:
+        if any(_num_close(x, y) for x in tna for y in tnb):
+            return True
+        return False                      # sarlavhadagi raqamlar boshqa: 19,6% va 9,6 mln
+    na, nb = set(a.get("nums") or []), set(b.get("nums") or [])
+    if len(na) >= 5 and len(nb) >= 5 and len(na & nb) / min(len(na), len(nb)) < 0.2:
+        return False                      # matndagi raqamlar deyarli umumiy emas
+    return True
 
 
 def same_story(a: dict, b: dict) -> bool:
@@ -139,10 +192,15 @@ def same_story(a: dict, b: dict) -> bool:
             return True
     # Sarlavha bir xil (lotin/kirill farqi hisobga olinmaydi): kamida 5 so'z, 70% mos, 2 kun ichida
     # Sarlavhadagi raqamlar farq qilsa ("11% oshdi" va "57,2% oshdi") — bir qolipdagi boshqa xabarlar
+    # Bir tildagi, maqola raqamlari boshqa-boshqa havolalar — sarlavha bir xil bo'lsa ham boshqa maqolalar
+    # (sayt sarlavhani topa olmasa hamma sahifada "Rasmiy24 - Latest News" kabi umumiy nom bo'ladi)
+    ia, ib = _url_id(a["url"]), _url_id(b["url"])
+    diff_ids = bool(ia and ib and ia != ib and "t.me" not in a["url"] and "t.me" not in b["url"]
+                    and lang_label(a["url"], a.get("title") or "") == lang_label(b["url"], b.get("title") or ""))
     ta, tb = title_tokens(a.get("title")), title_tokens(b.get("title"))
     tna, tnb = set(numbers(a.get("title") or "")), set(numbers(b.get("title") or ""))
-    if len(ta) >= 5 and len(tb) >= 5 and tna == tnb and len(ta & tb) / max(len(ta), len(tb)) >= 0.7 \
-            and _close(a, b, 48):
+    if not diff_ids and len(ta) >= 5 and len(tb) >= 5 and tna == tnb \
+            and len(ta & tb) / max(len(ta), len(tb)) >= 0.7 and _close(a, b, 48):
         return True
     # Telegram posti aynan shu nashrning shu maqolasiga havola bersa.
     # Faqat nashrning o'z saytidagi maqola havolalari hisoblanadi: qo'mita kanaliga, stat.uz'ga
@@ -152,20 +210,24 @@ def same_story(a: dict, b: dict) -> bool:
         out = set()
         for x in (r.get("links") or []) + [r["url"]]:
             sp = up.urlsplit(x)
-            if site_key(x) == own and len(sp.path.strip("/")) > 8:
+            # Telegram havolalari (kanalning o'zi, taklif havolasi) har postning tagida bo'ladi — hisoblanmaydi
+            if site_key(x).startswith("t.me"):
+                continue
+            path = sp.path.strip("/")
+            # maqola havolasi: uzun yo'l yoki raqamli ("download-app" kabi umumiy havolalar emas)
+            if site_key(x) == own and len(path) > 8 and (len(path) > 20 or re.search(r"\d{3,}", path)):
                 out.add(site_key(x) + sp.path.rstrip("/"))
         return out
     if own_links(a) & own_links(b):
         return True
     # bir xil maqola raqami (masalan, ...-5252 va oz/...-5252)
-    ia, ib = _url_id(a["url"]), _url_id(b["url"])
     if ia and ia == ib and a["url"] != b["url"] and "t.me" not in a["url"]:
         return True
     # Bir xil rasm/raqamlar — faqat bitta nashr ichida (boshqa nashrlar qo'mita rasmini
     # va raqamlarini takrorlagani bilan ular birlashtirilmaydi — yuqorida outlet tekshirildi).
-    if a.get("img") and a.get("img") == b.get("img"):
+    if a.get("img") and a.get("img") == b.get("img") and _img_same_story(a, b, tna, tnb):
         return True
-    na, nb = set(a.get("nums") or []), set(b.get("nums") or [])
+    na, nb = _sig_nums(a), _sig_nums(b)
     common = na & nb
     small = min(len(na), len(nb))
     if small == 0:
@@ -176,6 +238,8 @@ def same_story(a: dict, b: dict) -> bool:
     # Boshqa til versiyasi: tili farq qiladi, 3 soat ichida chiqqan va kamida 2 ta raqam bir xil
     if a.get("lang") != b.get("lang") and len(common) >= 2 and _close(a, b, 3):
         return True
-    if len(common) >= 2 and small <= 3 and ratio >= 0.66:
+    # kam raqamli xabarlar: kamida bittasi "kuchli" (kasr yoki 3+ xonali) bo'lsin — "50" va "60" emas
+    strong = any("." in n or len(n) >= 3 for n in common)
+    if len(common) >= 2 and small <= 3 and ratio >= 0.66 and strong:
         return True
     return False

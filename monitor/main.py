@@ -507,7 +507,7 @@ class Run:
             for p in posts:
                 for u in p.get("links") or []:
                     d = ver.site_key(u)
-                    if d and d != "t.me" and "." in d:
+                    if d and not d.startswith("t.me") and "." in d:   # kanal/taklif havolalari sayt emas
                         lk[d] = lk.get(d, 0) + 1
             if len(lk) > 30:
                 self.meta["tg_links"][c] = dict(sorted(lk.items(), key=lambda x: -x[1])[:30])
@@ -591,7 +591,7 @@ class Run:
 
     def tg_outlet(self, chan):
         """Kanal biror saytning rasmiy kanali bo'lsa — o'sha sayt domeni, aks holda t.me/<kanal>."""
-        lk = self.meta.get("tg_links", {}).get(chan, {})
+        lk = {d: n for d, n in self.meta.get("tg_links", {}).get(chan, {}).items() if not d.startswith("t.me")}
         tot = sum(lk.values())
         if lk and tot >= 5:
             d, n = max(lk.items(), key=lambda x: x[1])
