@@ -589,18 +589,25 @@ class Run:
         if queue:
             log.info("Gemini: %d ta post tekshirildi, navbatda %d", len(queue) - len(rest), len(rest))
 
+    def _news_site(self, d):
+        return d in self.site_domains and not (d == "stat.uz" or d.endswith(".stat.uz"))
+
     def tg_outlet(self, chan):
         """Kanal biror saytning rasmiy kanali bo'lsa — o'sha sayt domeni, aks holda t.me/<kanal>."""
         lk = {d: n for d, n in self.meta.get("tg_links", {}).get(chan, {}).items() if not d.startswith("t.me")}
         tot = sum(lk.values())
         if lk and tot >= 5:
             d, n = max(lk.items(), key=lambda x: x[1])
-            if n / tot >= 0.7:
+            # faqat ro'yxatdagi yangilik sayti; qo'mita saytlari (census.stat.uz, stat.uz ...), instagram,
+            # facebook kabilar kanal egasi emas — aks holda turli kanallar bitta nashr bo'lib qoladi
+            if n / tot >= 0.7 and self._news_site(d):
                 return d
         # nomidan, faqat aniq mos kelsa: kursivuz -> kursiv.media, zamonuz -> zamon.uz
         # ("daryouz_dunyo_yangiliklar" kabi boshqa kanallar mos kelmaydi)
         name = re.sub(r"[^a-z0-9]", "", chan.lower())
         for d in self.site_domains:
+            if not self._news_site(d):
+                continue
             parts = d.split(".")
             stem = parts[1] if parts[0] in ("uz", "oz", "ru", "en") and len(parts) > 2 else parts[0]
             stem = re.sub(r"[^a-z0-9]", "", stem)

@@ -119,3 +119,27 @@ def test_tg_repost_same_numbers():
     a = rec("https://t.me/ovozli24/20482", "#Import", nums=nums)
     b = rec("https://t.me/ovozli24/20461", "#Import", nums=nums)
     assert ver.same_story(a, b)
+
+
+# --- kanal egasi (nashr) ---
+
+def _run(links_by_chan):
+    from monitor.main import Run
+    r = Run.__new__(Run)          # __init__ tarmoq/holatni yuklaydi — kerak emas
+    r.meta = {"tg_links": links_by_chan}
+    r.site_domains = {"daryo.uz", "zamon.uz", "kursiv.media"}
+    return r
+
+
+def test_tg_outlet_only_news_sites():
+    r = _run({
+        "daryo_kirill": {"daryo.uz": 40, "instagram.com": 2},
+        "census_chan": {"census.stat.uz": 20},
+        "insta_chan": {"instagram.com": 30},
+        "self_chan": {"t.me/statistika_rasmiy": 50, "t.me/+abc": 10},
+    })
+    assert r.tg_outlet("daryo_kirill") == "daryo.uz"
+    assert r.tg_outlet("census_chan") == "t.me/census_chan"
+    assert r.tg_outlet("insta_chan") == "t.me/insta_chan"
+    assert r.tg_outlet("self_chan") == "t.me/self_chan"
+    assert r.tg_outlet("zamonuz") == "zamon.uz"          # nomidan
