@@ -25,6 +25,50 @@ LETTERS = re.compile(r"[A-Za-zА-Яа-яЎўҚқҒғҲҳЁёЄєІіЇїÖöŞş
 COMMON = re.compile(r"\b(va|bilan|uchun|ham|ва|билан|учун|ҳам|ва|и|в|на|не|что|для)\b", re.I)
 
 
+UZ_RU = set("абвгдеёжзийклмнопрстуфхцчшщъыьэюяўқғҳАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯЎҚҒҲ")
+HI = re.compile(r"[\u00c0-\u00ff]")
+# eski o'zbek shriftlari: cp1251 da yo'q harflar bo'sh o'rinlarga qo'yilgan (cp1251 bo'yicha o'qilgandagi ko'rinishi)
+LEGACY_MAP = {"ґ": "ў", "Ґ": "Ҳ", "і": "қ", "І": "Қ"}
+
+
+def is_legacy(t):
+    """Kirill matn cp1251 baytlari lotin-1 harflari bo'lib chiqqanmi (Ñêàíèðóéòå = Сканируйте)."""
+    letters = [c for c in t if c.isalpha()]
+    return len(letters) > 200 and len(HI.findall(t)) / len(letters) > 0.3
+
+
+def decode_legacy(t, mapping=None):
+    out = []
+    for ch in t:
+        b = None
+        for enc in ("cp1252", "latin-1"):
+            try:
+                bb = ch.encode(enc)
+                if len(bb) == 1 and bb[0] >= 0x80:
+                    b = bb
+                break
+            except UnicodeEncodeError:
+                continue
+        out.append(b.decode("cp1251", errors="replace") if b else ch)
+    s = "".join(out)
+    for a, c in (mapping or {}).items():
+        s = s.replace(a, c)
+    return s
+
+
+def odd_letters(t):
+    """cp1251 dan keyin o'zbek/rus alifbosida yo'q harflar va misol so'zlar."""
+    from collections import Counter, defaultdict
+    cnt, ex = Counter(), defaultdict(list)
+    for w in re.findall(r"\w+", t):
+        for c in set(w):
+            if c.isalpha() and c not in UZ_RU and not ("a" <= c.lower() <= "z"):
+                cnt[c] += 1
+                if len(ex[c]) < 4 and w not in ex[c]:
+                    ex[c].append(w)
+    return [(c, n, ex[c]) for c, n in cnt.most_common(14)]
+
+
 def clean(t):
     t = re.sub(r"-\s*\n\s*", "", t)           # satr oxiridagi bo'g'in ko'chirish
     return re.sub(r"\s+", " ", t).strip()
@@ -34,8 +78,12 @@ def pdf_report(data, kw):
     import fitz
     doc = fitz.open(stream=data, filetype="pdf")
     pages, total, hits = doc.page_count, "", []
-    for i, p in enumerate(doc):
-        t = clean(p.get_text())
+    raw = [clean(p.get_text()) for p in doc]
+    legacy = is_legacy(" ".join(raw))
+    odd = odd_letters(decode_legacy(" ".join(raw))) if legacy else []
+    for i, t in enumerate(raw):
+        if legacy:
+            t = decode_legacy(t, LEGACY_MAP)
         total += " " + t
         m = kw.match(t, trusted=True)
         if m:
@@ -50,8 +98,10 @@ def pdf_report(data, kw):
         status = "matn buzuq"
     else:
         status = "matn bor"
+    if legacy and status == "matn bor":
+        status = "matn bor (kodlash tuzatildi)"
     return {"pages": pages, "chars": chars, "ratio": round(letter_ratio, 2), "common": common,
-            "status": status, "hits": hits, "sample": total.strip()[:160]}
+            "status": status, "hits": hits, "sample": total.strip()[:160], "odd": odd}
 
 
 async def main_async():
@@ -111,6 +161,10 @@ async def main_async():
     for r in with_hits:
         for pg, word, sn in r["hits"]:
             lines.append(f"- https://t.me/{CHANNEL}/{r['id']} — {pg}-bet — «{word}»: {sn}")
+    lines += ["", "## Kodlash: cp1251 dan keyin alifboda yo'q harflar (misol so'zlar)", ""]
+    for r in rows:
+        if r.get("odd"):
+            lines.append(f"- {r['id']} {r['file'][:40]}: " + "; ".join(f"{c}×{n} {' '.join(e)}" for c, n, e in r["odd"]))
     lines += ["", "## Matn namunasi (buzuqmi — ko'rish uchun)", ""]
     for r in rows:
         if r.get("sample"):
