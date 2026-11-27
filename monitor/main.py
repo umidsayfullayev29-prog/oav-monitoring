@@ -936,6 +936,9 @@ class Run:
         tg = Telegram(os.environ.get("TG_BOT_TOKEN"), os.environ.get("TG_CHAT_ID"))
         if tg.send("\n".join(self.weekly_lines(now)), silent=False, preview=False):
             self.meta["weekly_day"] = today
+            log.info("Haftalik hisobot yuborildi")
+        else:
+            log.warning("Haftalik hisobot yuborilmadi — keyingi tekshiruvda qayta urinadi")
 
     def weekly_lines(self, now=None):
         now = now or NOW
