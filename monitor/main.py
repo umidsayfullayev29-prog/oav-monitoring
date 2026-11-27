@@ -661,6 +661,8 @@ class Run:
                  len(self.pending))
         sites = [s for s in self.src.get("sites", []) if s.get("enabled", True)]
         self.site_domains = {s["domain"] for s in sites}
+        # Sayt va o'z Telegram kanali bir xabarni bersa — kanal posti yuboriladigan nashrlar (sources.yml)
+        self.tg_prefer = {d.strip().lower() for d in (self.src.get("telegram_ustun") or [])}
         # Ketma-ket 3 marta ochilmagan saytlar har 6-ishga tushishda bir tekshiriladi (vaqtni tejash)
         fails = self.meta.setdefault("fails", {})
         run_no = self.meta.get("run_no", 0) + 1
@@ -848,7 +850,8 @@ class Run:
             cand = r
             opts = [r] + [a for a in group.get(r["k"], []) if "news.google." not in a["url"]]
             if len(opts) > 1:
-                cand = min(opts, key=lambda x: (LANG_PRIORITY.get(x.get("lang"), 9), opts.index(x)))
+                cand = min(opts, key=lambda x: (LANG_PRIORITY.get(x.get("lang"), 9),
+                                                0 if self._tg_preferred(x) else 1, opts.index(x)))
                 if cand is not r:
                     log.info("O'zbekcha versiya tanlandi: %s o'rniga %s", r["url"], cand["url"])
                     r["sent_as"] = cand["url"]
@@ -884,6 +887,9 @@ class Run:
         self.msgs = {}
         self.alt_queue = []
         log.info("Telegram: kanalga %d, egasiga %d, navbatda qoldi %d", sent, to_dm, len(rest))
+
+    def _tg_preferred(self, r):
+        return r.get("layer") == "Telegram" and ver.outlet(r) in getattr(self, "tg_prefer", set())
 
     def daily_summary(self):
         today = NOW.strftime("%Y-%m-%d")
@@ -1004,6 +1010,8 @@ def channel_url(r, run):
         return r["url"]
     outlet = r.get("outlet") or ""
     if not outlet or outlet.startswith("t.me"):
+        return r["url"]
+    if outlet in getattr(run, "tg_prefer", set()):      # bu nashrda kanal posti afzal (sources.yml: telegram_ustun)
         return r["url"]
     for u in r.get("links") or []:
         if ver.site_key(u) == outlet and web.looks_like_article(u):

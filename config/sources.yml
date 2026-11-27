@@ -870,6 +870,12 @@ telegram_channels_ai_dm:
   - uzbekistan24_tvnews
 
 telegram_channels_min_subscribers: 5000   # hamma kanallarga qo'llanadi
+
+# Sayt va o'z Telegram kanali bir xabarni bersa — saytdagi maqola emas, kanal posti yuboriladi.
+# (Faqat bitta tekshiruvda ikkalasi topilganda yoki kanal posti birinchi topilganda; sayt oldin
+#  yuborilib bo'lgan bo'lsa — keyin kelgan kanal posti qayta yuborilmaydi.)
+telegram_ustun:
+  - xushnudbek.uz
 telegram_channels_filtered:
   - a_huquq_uz
   - abdullayev_shavkatjon
