@@ -39,6 +39,29 @@ class Telegram:
         payload = {"chat_id": self.chat_id, "message_id": message_id, "text": text, "parse_mode": "HTML"}
         return self._call("editMessageText", payload) is not None
 
+    def updates(self, offset=None):
+        """getUpdates: (ok, natijalar, xato matni). Webhook ulangan bo'lsa ok=False (409)."""
+        if not self.token:
+            return False, [], "token yo'q"
+        payload = {"timeout": 0, "limit": 100, "allowed_updates": ["message"]}
+        if offset is not None:
+            payload["offset"] = offset
+        try:
+            r = requests.post(f"https://api.telegram.org/bot{self.token}/getUpdates", json=payload, timeout=20)
+            j = r.json()
+        except (requests.RequestException, ValueError) as e:
+            return False, [], str(e)
+        if r.status_code != 200 or not j.get("ok"):
+            return False, [], f"{r.status_code}: {j.get('description')}"
+        return True, j.get("result") or [], ""
+
+    def set_commands(self, commands):
+        """Faqat shu chat uchun buyruqlar menyusi."""
+        if not self.token or not self.chat_id:
+            return False
+        return self._call("setMyCommands", {"commands": [{"command": c, "description": d} for c, d in commands],
+                                            "scope": {"type": "chat", "chat_id": self.chat_id}}) is not None
+
     def _call(self, method, payload):
         wait = 1.05 - (time.monotonic() - self.last)
         if wait > 0:

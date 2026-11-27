@@ -817,6 +817,11 @@ class Run:
         self.send()
         self.persist_found()
         self.daily_summary()
+        self.weekly_summary()
+        try:
+            self.handle_commands()
+        except Exception as e:      # buyruqlar xatosi asosiy tekshiruvni buzmasin
+            log.warning("Buyruqlar xatosi: %s", e)
         self.cleanup_and_save()
         self.write_summary()
 
@@ -895,6 +900,13 @@ class Run:
         today = NOW.strftime("%Y-%m-%d")
         if NOW.hour < 21 or self.meta.get("summary_day") == today:
             return
+        tg = Telegram(os.environ.get("TG_BOT_TOKEN"), os.environ.get("TG_CHAT_ID"))
+        if tg.send("\n".join(self.daily_lines()), silent=True, preview=False):
+            self.meta["summary_day"] = today
+
+    def daily_lines(self, now=None, partial=False):
+        now = now or NOW
+        today = now.strftime("%Y-%m-%d")
         day_recs = []
         if self.found_path.exists():
             for line in self.found_path.read_text("utf-8").splitlines():
@@ -908,13 +920,107 @@ class Run:
         for r in day_recs:
             by_src[r["source"]] = by_src.get(r["source"], 0) + 1
         top = sorted(by_src.items(), key=lambda x: -x[1])[:15]
-        lines = [f"📊 <b>Kunlik yakun — {NOW.strftime('%d.%m.%Y')}</b>",
+        head = f"soat {now.strftime('%H:%M')} holatiga" if partial else "Kunlik yakun"
+        lines = [f"📊 <b>{head} — {now.strftime('%d.%m.%Y')}</b>",
                  f"Bugun topilgan chiqishlar: <b>{len(day_recs)}</b>", ""]
         lines += [f"• {html.escape(s)} — {n}" for s, n in top]
         lines += [""] + self.run_health_lines()
+        return lines
+
+    def weekly_summary(self, now=None):
+        """Har juma 18:00 dan keyingi birinchi tekshiruvda: oxirgi 7 kun — umumiy va OAVlar kesimida top 20."""
+        now = now or NOW
+        today = now.strftime("%Y-%m-%d")
+        if now.weekday() != 4 or now.hour < 18 or self.meta.get("weekly_day") == today:
+            return
         tg = Telegram(os.environ.get("TG_BOT_TOKEN"), os.environ.get("TG_CHAT_ID"))
-        if tg.send("\n".join(lines), silent=True, preview=False):
-            self.meta["summary_day"] = today
+        if tg.send("\n".join(self.weekly_lines(now)), silent=False, preview=False):
+            self.meta["weekly_day"] = today
+
+    def weekly_lines(self, now=None):
+        now = now or NOW
+        start = now - dt.timedelta(days=7)
+        later_sent = set()      # keyin qo'lda / tekshiruv bilan kanalga yuborilganlar
+        for name in ("backfill_sent.txt", "manual_sent.txt"):
+            f = DATA / name
+            if f.exists():
+                later_sent |= {x.strip() for x in f.read_text("utf-8").splitlines() if x.strip()}
+        recs, first, seen = [], None, set()
+        if self.found_path.exists():
+            for line in self.found_path.read_text("utf-8").splitlines():
+                try:
+                    r = json.loads(line)
+                    t = dt.datetime.fromisoformat(r.get("found_at") or "")
+                except (json.JSONDecodeError, ValueError):
+                    continue
+                t = t.astimezone(TZ) if t.tzinfo else t.replace(tzinfo=TZ)
+                first = t if first is None or t < first else first
+                if start <= t <= now and r.get("k") not in seen:
+                    seen.add(r.get("k"))
+                    recs.append(r)
+        to_channel = [r for r in recs if (not r.get("alt_of") and not problem_reason(r)) or r.get("k") in later_sent]
+        to_dm = [r for r in recs if not r.get("alt_of") and problem_reason(r) and r.get("k") not in later_sent]
+        alts = [r for r in recs if r.get("alt_of") and r.get("k") not in later_sent]
+        layers, by_oav = {}, {}
+        for r in to_channel:
+            layers[r.get("layer") or "?"] = layers.get(r.get("layer") or "?", 0) + 1
+            o = ver.outlet(r)
+            by_oav[o] = by_oav.get(o, 0) + 1
+        ai = sum(1 for r in to_channel if str(r.get("keyword", "")).startswith("AI:"))
+        top = sorted(by_oav.items(), key=lambda x: (-x[1], x[0]))[:20]
+        shown = max(start, first) if first else start
+        ts = sorted(t for t in set(self.meta.get("run_log", [])) if t >= start.timestamp())
+        gap = max((b - a for a, b in zip(ts, ts[1:])), default=0)
+        lines = [f"📈 <b>Haftalik hisobot — {shown.strftime('%d.%m')}–{now.strftime('%d.%m.%Y')}</b>",
+                 f"Kanalga ketgan chiqishlar: <b>{len(to_channel)}</b>"]
+        if layers:
+            lines.append("• " + ", ".join(f"{html.escape(k)}: {v}" for k, v in sorted(layers.items(), key=lambda x: -x[1])))
+        lines += [f"• shundan Gemini topgan: {ai}",
+                  f"OAVlar soni: {len(by_oav)}",
+                  f"Tekshirishga (sizga) yuborilgan: {len(to_dm)}",
+                  f"Boshqa til/nusxa sifatida tashlangan: {len(alts)}", "",
+                  "<b>OAVlar kesimida top 20:</b>"]
+        lines += [f"{i}. {html.escape(o)} — {n}" for i, (o, n) in enumerate(top, 1)] or ["—"]
+        if ts:
+            g = f", eng uzoq tanaffus: {gap // 3600} soat {gap % 3600 // 60} daq" if gap else ""
+            lines += ["", f"Tekshiruvlar ({dt.datetime.fromtimestamp(ts[0], TZ).strftime('%d.%m %H:%M')} dan): {len(ts)} ta{g}"]
+        return lines
+
+    def handle_commands(self, tg=None):
+        """Egasi botga yozgan /kunlik, /haftalik buyruqlariga javob (har tekshiruvda bir marta o'qiladi)."""
+        owner = (os.environ.get("TG_CHAT_ID") or "").strip()
+        tg = tg or Telegram(os.environ.get("TG_BOT_TOKEN"), owner)
+        if not tg.token or not owner:
+            return
+        if not self.meta.get("cmds_set"):
+            if tg.set_commands([("kunlik", "Bugungi hisobot (hozirgacha)"), ("haftalik", "Oxirgi 7 kun hisoboti")]):
+                self.meta["cmds_set"] = 1
+        want, last_id, pages = [], None, 0
+        while pages < 10:
+            ok, ups, err = tg.updates(None if last_id is None else last_id + 1)
+            pages += 1
+            if not ok:
+                log.warning("Buyruqlarni o'qib bo'lmadi: %s", err)
+                if "409" in err and not self.meta.get("cmd_warned"):
+                    if tg.send("⚠️ /kunlik va /haftalik ishlamayapti: monitoring botiga webhook ulangan "
+                               f"({html.escape(err)}). Webhookka tegmadim.", preview=False):
+                        self.meta["cmd_warned"] = 1
+                return
+            if not ups:
+                break
+            for u in ups:
+                last_id = max(last_id or 0, u.get("update_id", 0))
+                m = u.get("message") or {}
+                if str((m.get("chat") or {}).get("id")) != owner:
+                    continue
+                cmd = (m.get("text") or "").strip().split()[0].split("@")[0].lower() if m.get("text") else ""
+                if cmd in ("/kunlik", "/haftalik") and cmd not in want:
+                    want.append(cmd)
+        for cmd in want:
+            lines = self.daily_lines(partial=True) if cmd == "/kunlik" else self.weekly_lines()
+            tg.send("\n".join(lines), preview=False)
+        if want:
+            log.info("Buyruqlar bajarildi: %s", ", ".join(want))
 
     def run_health_lines(self):
         """Bugungi tekshiruvlar soni va eng uzoq tanaffus (zanjir uzilganini ko'rish uchun)."""
@@ -944,7 +1050,7 @@ class Run:
         self.meta["baseline_done"] = sorted(self.baseline_done | self.baseline_new)
         self.meta["tg_seen"] = sorted(self.tg_seen | self.tg_seen_new)
         self.meta["last_run_ts"] = int(NOW.timestamp())
-        self.meta["run_log"] = (self.meta.get("run_log", []) + [int(NOW.timestamp())])[-150:]
+        self.meta["run_log"] = (self.meta.get("run_log", []) + [int(NOW.timestamp())])[-400:]   # ~1 hafta
         for name, obj in (("checked.json", self.checked), ("feeds.json", self.feeds),
                           ("pending.json", self.pending), ("meta.json", self.meta), ("msgs.json", self.msgs)):
             (STATE / name).write_text(json.dumps(obj, ensure_ascii=False, default=str), "utf-8")
