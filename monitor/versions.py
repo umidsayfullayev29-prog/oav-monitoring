@@ -24,6 +24,18 @@ def site_key(url: str) -> str:
     return h
 
 
+def _lang_sure(url: str, title: str = ""):
+    """Til aniq ma'lum bo'lsa (havoladagi til qismi, subdomen yoki kirill yozuv) — o'sha til, aks holda None.
+    Lotin sarlavhadan taxmin qilingan til (yangi lotin alifbosi "en" bo'lib qolishi mumkin) hisoblanmaydi."""
+    p = up.urlsplit(url)
+    sub = (p.hostname or "").split(".")[0].lower()
+    if LANG_PATH.match(p.path or "") or sub in ("ru", "rus", "en", "eng", "oz", "kr", "cyr"):
+        return lang_label(url, title)
+    if re.search(r"[а-яёА-ЯЁўқғҳЎҚҒҲ]", title or ""):
+        return lang_label(url, title)
+    return None
+
+
 def lang_label(url: str, title: str = "") -> str:
     p = up.urlsplit(url)
     m = LANG_PATH.match(p.path or "")
@@ -195,8 +207,13 @@ def same_story(a: dict, b: dict) -> bool:
     # Bir tildagi, maqola raqamlari boshqa-boshqa havolalar — sarlavha bir xil bo'lsa ham boshqa maqolalar
     # (sayt sarlavhani topa olmasa hamma sahifada "Rasmiy24 - Latest News" kabi umumiy nom bo'ladi)
     ia, ib = _url_id(a["url"]), _url_id(b["url"])
+    la, lb = _lang_sure(a["url"], a.get("title") or ""), _lang_sure(b["url"], b.get("title") or "")
     diff_ids = bool(ia and ib and ia != ib and "t.me" not in a["url"] and "t.me" not in b["url"]
-                    and lang_label(a["url"], a.get("title") or "") == lang_label(b["url"], b.get("title") or ""))
+                    and la and la == lb)
+    # Bir tildagi, havoladagi maqola raqami boshqa-boshqa — bular alohida maqolalar: hech qaysi belgi
+    # (rasm, raqamlar, sarlavha) ularni birlashtirmaydi (rasmiy24: hamma maqolada bir xil sarlavha va rasm)
+    if diff_ids:
+        return False
     ta, tb = title_tokens(a.get("title")), title_tokens(b.get("title"))
     tna, tnb = set(numbers(a.get("title") or "")), set(numbers(b.get("title") or ""))
     if not diff_ids and len(ta) >= 5 and len(tb) >= 5 and tna == tnb \

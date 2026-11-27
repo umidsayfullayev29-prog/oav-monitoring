@@ -143,3 +143,20 @@ def test_tg_outlet_only_news_sites():
     assert r.tg_outlet("insta_chan") == "t.me/insta_chan"
     assert r.tg_outlet("self_chan") == "t.me/self_chan"
     assert r.tg_outlet("zamonuz") == "zamon.uz"          # nomidan
+
+
+def test_same_lang_different_ids_never_same():
+    a = rec("https://rasmiy24.uz/uz/article/1217/", "Rasmiy24 - Latest News and Articles",
+            img="80272d04-c784-4002-a", nums=["15", "30", "2026"])
+    b = rec("https://rasmiy24.uz/uz/article/1185/", "Rasmiy24 - Latest News and Articles",
+            img="80272d04-c784-4002-a", nums=["15", "30", "2026"])
+    assert not ver.same_story(a, b)
+
+
+def test_different_lang_different_ids_still_same():
+    nums = ["2.6", "27.4", "27.8", "27.9", "28.4", "28.8", "29.1", "29.3", "29.5", "29.6"]
+    a = rec("https://kun.uz/news/2026/11/26/ozbekiston-aholisining-ortacha-yoshi-30-yoshga-yaqinlashdi-62298",
+            "Özbekiston aholisining örtaça yoşi 30 yoşga yaqinlaşdi", nums=nums)
+    b = rec("https://kun.uz/en/news/2026/11/25/uzbekistans-average-population-age-rises-to-296-62206",
+            "Uzbekistan's average population age rises to 29.6", nums=nums)
+    assert ver.same_story(a, b)
