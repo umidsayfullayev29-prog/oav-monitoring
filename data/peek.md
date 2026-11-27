@@ -1,20 +1,21 @@
-# 30 ta harbiy atamaning özbekça muqobili kiritilmoqda
-URL: https://xushnudbek.uz/p/dubinka-orniga-darra-furajka-orniga-bork-30-ta-harbiy-atama
-Sana: 2026-11-27 12:35:17+00:00
-Rasm: https://xushnudbek.uz/og/p/01a21d00-d0c0-7e4c-8f52-724ff58159b3?lang=uz-Latn
+# Biznesni röyxatga oliş savolnomasi qanday töldiriladi?
+URL: https://xushnudbek.uz/p/biznesni-royxatga-olish-savolnomasi-qanday-toldiriladi
+Sana: 2026-11-27 12:04:44+00:00
+Rasm: https://cdn.presona.club/bgY7bl73VjqlKgezvRR7phnR-6z8jXxVhh84k_48QGY/rs:fit:1200:0/q:85/czM6Ly9wcmVzb25hLWNsdWItc3RvcmFnZS9zaXRlcy8wMWExN2U0Ny00Yjg0LTc0MmEtYmM4Yy1kYTUzMDE4ZjMxMDUvby82Zi82ZmRkNzQ0OWU5NGUzZTlhYzcyZjExZTVhOTE4ZTkyMzYyMWZlZGM3NmUzNmYyYmIyYzlkMGE3NTg4MmRkZjFhLmpwZw.jpg
 
 ## Matn
-30 ta harbiy atama.pdf
-PDF · 703 KB
-“Dubinka” örniga “darra”, “furajka” örniga “börk”: 30 ta harbiy atamaning özbekça muqobili rasmiy muomalaga kiritilmoqda:
-Özbekiston Fanlar akademiyasi Özbek tili, adabiyoti va folklori instituti tomonidan harbiy sohadagi özbek tili qoida va meʼyorlariga moslaştirilgan hamda rasmiy muomalaga kiritiladigan yangi atamalar röyxati tasdiqlandi .
-Akselband —> Zarband Ambrazura —> Şinak Ataka —> Hamla Baraban(çi) —> Dovul(çi) Blindaj —> Panajoy Blokada —> Qamal Bronejilet —> Zirhnimça Blokpost —> Tösiqpost Veşmeşok —> Yukxalta Gaupvaxta —> Bandixona Gorn(çi) —> Burğu(çi) Diversiya —> Qöporuvçilik Diversant —> Qöporuvçi Dubinka —> Darra Dozor —> Erovul Kokarda —> Jiğa Kotelok —> Qozonça Mişen —> Nişon Okop —> Xandaq Protivogaz —> Gazniqob Rejim —> Tartibot Tranşeya —> Xandaq yölagi Trevoga —> Bong Trençik —> Zanjirboğ Tribunal —> Harbiy mahkama Furajka —> Börk Fortifikatsiya —> Istehkom Şevron —> Uqa
+❓ Biznesni röyxatga oliş savolnomasi qanday töldiriladi?
+Yuridik şaxslar OneID yoki elektron raqamli imzo orqali hisobot.stat.uz saytiga kirib, savolnomani mustaqil töldirişlari mumkin.
+Uşbu havoladagi videoqöllanmada korxonaning faoliyat turlari, daromadlari, xarajatlari, investitsiyalari va boşqa maʼlumotlarni kiritiş, savolnomani yuboriş hamda sertifikatni yuklab oliş tartibi tuşuntirilgan.
+Biznesni röyxatga oliş mamlakatdagi barça iqtisodiy faoliyat yurituvçi subyektlarni, jumladan, norasmiy tadbirkorlarni ham hisobga olişga qaratilgan.
+🗓 15-oktyabrda boşlangan tadbir 30-noyabrda yakunlanadi. Natijalar 2027-yil 1-sentyabrga qadar eʼlon qilinadi.
+Savollar böyiça 1851 qisqa raqamiga murojaat qiliş mumkin.
 👉 @xushnudbek 👈
-# atama
-# fanlar akademiyasi
-# harbiy
-# luğat
-# til
+# biznes
+# hisobot
+# savolnoma
+# statistika
+# tadbirkorlik
 Xushnudbek.uz
 @xushnudbek · 696 ming obunaçi
 
