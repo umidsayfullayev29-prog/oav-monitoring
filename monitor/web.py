@@ -188,6 +188,16 @@ def _drop_feed_lines(body):
     return "\n".join(out)
 
 
+# Blog/kanal sahifalarida maqoladan keyin keladigan "Shu postdan oldin/keyin" (oldingi/keyingi post) bloki.
+# Undagi boshqa post sarlavhasi topilma bo'lib ketmasin (xushnudbek.uz, 27.11).
+POST_NAV = re.compile(r"\b(?:Ş|Sh|Ш)(?:u|у)\s+(?:postdan|постдан)\s+(?:oldin|keyin|олдин|кейин)\b", re.I)
+
+
+def _cut_post_nav(body):
+    m = POST_NAV.search(body)
+    return body[:m.start()].rstrip() if m and m.start() > 200 else body
+
+
 def _meta(soup, *names):
     for n in names:
         el = soup.find("meta", attrs={"property": n}) or soup.find("meta", attrs={"name": n}) \
@@ -310,7 +320,7 @@ def extract_article(html: str):
         body = "\n".join(p.get_text(" ", strip=True) for p in soup.find_all("p"))
     if ld.get("body") and len(ld["body"]) > len(body):
         body = ld["body"]
-    body = _drop_feed_lines(body)
+    body = _cut_post_nav(_drop_feed_lines(body))
     return {"title": " ".join((title or "").split()), "desc": desc, "date": date, "text": body, "image": image}
 
 
