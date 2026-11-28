@@ -1,4 +1,4 @@
-# Kanalga bormay qolgan topilmalar (dry)
+# Kanalga bormay qolgan topilmalar (send)
 
 Yuboriladi: 1, o'tkaziladi: 0
 
