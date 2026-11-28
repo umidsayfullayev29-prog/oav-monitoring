@@ -160,3 +160,17 @@ def test_different_lang_different_ids_still_same():
     b = rec("https://kun.uz/en/news/2026/11/25/uzbekistans-average-population-age-rises-to-296-62206",
             "Uzbekistan's average population age rises to 29.6", nums=nums)
     assert ver.same_story(a, b)
+
+
+def test_gazeta_different_slug_is_different_article():
+    """gazeta.uz: raqamlari o'xshash, lekin havola oxiri boshqa — boshqa maqola (28.11 dagi xato)."""
+    nums_a = ['10', '100', '12.5', '125', '20', '200', '23', '30', '400', '48', '480', '6.5', '64.5', '90']
+    nums_b = ['200', '24', '25', '30', '400', '48', '90', '95']
+    a = {"url": "https://www.gazeta.uz/oz/2026/11/26/livestock-farming/", "lang": "ўз", "nums": nums_a,
+         "title": "O‘zbekistonda qo‘shimcha 400 ming tonna go‘sht yetishtirish rejalashtirilmoqda"}
+    b = {"url": "https://www.gazeta.uz/uz/2026/11/28/meat-uzbekistan/", "lang": "uz", "nums": nums_b,
+         "title": "Озуқа танқислиги ва гўшт нархлари"}
+    c = dict(b, url="https://www.gazeta.uz/ru/2026/11/27/meat-uzbekistan/", lang="ru",
+             title="Дефицит кормов и цены на мясо")
+    assert not ver.same_story(a, b)
+    assert ver.same_story(b, c)          # bir maqolaning til versiyalari birga qoladi

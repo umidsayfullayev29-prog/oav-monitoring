@@ -187,6 +187,15 @@ def _img_same_story(a, b, tna, tnb):
     return True
 
 
+SLUG_UMUMIY = {"gazeta.uz", "uzbekistanobserver.com"}
+
+
+def _last_seg(u):
+    """Havola oxiri (maqola nomi); til qismi yoki faqat raqam bo'lsa — bo'sh."""
+    seg = up.urlsplit(u).path.rstrip("/").rsplit("/", 1)[-1].lower()
+    return "" if len(seg) < 3 or seg.isdigit() or LANG_PATH.match("/" + seg) else seg
+
+
 def same_story(a: dict, b: dict) -> bool:
     """Bitta nashrdagi bitta xabar (boshqa til yoki sayt + o'z Telegram kanali)."""
     if outlet(a) != outlet(b):
@@ -196,6 +205,12 @@ def same_story(a: dict, b: dict) -> bool:
     if da and db:
         import datetime as _dt
         if abs((_dt.date(*da) - _dt.date(*db)).days) > 2:
+            return False
+    # Bu nashrlar barcha til versiyalarini havolaning bir xil oxiri bilan chiqaradi (/ru/.../meat-uzbekistan/ va
+    # /uz/.../meat-uzbekistan/): oxiri boshqa bo'lsa — boshqa maqola, raqamlari o'xshash bo'lsa ham
+    if outlet(a) in SLUG_UMUMIY and "t.me" not in a["url"] and "t.me" not in b["url"]:
+        ea, eb = _last_seg(a["url"]), _last_seg(b["url"])
+        if ea and eb and ea != eb:
             return False
     # Bir xil yo'l, faqat til qismi boshqa (/oz/ va /uz/, /uz/ va til qismisiz)
     if "t.me" not in a["url"] and "t.me" not in b["url"]:
