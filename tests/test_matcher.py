@@ -54,3 +54,21 @@ def test_cases():
 if __name__ == "__main__":
     test_cases()
     print("OK", len(CASES))
+
+
+def test_foreign_agency_france_uk_rejected():
+    """28.11: Insee (Fransiya), ONS (Buyuk Britaniya) — qo'mita emas."""
+    import yaml
+    from pathlib import Path
+    from monitor.textutil import Matcher
+    m = Matcher(yaml.safe_load((Path(__file__).resolve().parent.parent / "config/keywords.yml").read_text("utf-8")))
+    fr = ("Fransiya iqtisodiyoti uçinçi çorakda retsessiyaga kirdi. Mamlakat YAIM 0,2 foizga qisqardi. "
+          "Bu haqda “Insee” milliy statistika agentligiga tayanib, “The Wall Street Journal” xabar berdi.")
+    assert m.match(fr, title="Fransiya iqtisodiyoti texnik tanazzulga yuz tutdi – WSJ", trusted=True) is None
+    uk = ("Buyuk Britaniya hukumati doimiy yashash huquqini olish shartlarini kuchaytirmoqchi. Bu haqda mamlakat "
+          "Milliy statistika boshqarmasi (ONS) ma’lum qildi.")
+    assert m.match(uk, title="Buyuk Britaniya doimiy yashash huquqini olish shartlarini qat’iylashtirmoqchi",
+                   trusted=True) is None
+    # o'zimizniki qoladi
+    uz = "Milliy statistika qo‘mitasi ma’lumotlariga ko‘ra, 2026 yilda YAIM 7,7 foizga o‘sdi."
+    assert m.match(uz, title="YAIM 7,7 foizga o‘sdi", trusted=True) is not None
