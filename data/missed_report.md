@@ -1,11 +1,10 @@
-# Kanalga bormay qolgan topilmalar (send)
+# Kanalga bormay qolgan topilmalar (dry)
 
-Yuboriladi: 2, o'tkaziladi: 0
+Yuboriladi: 1, o'tkaziladi: 0
 
 ## Yuboriladi
 
--  · https://rasmiy24.uz/uz/article/1198/ · Rasmiy24 - Latest News and Articles
--  · https://rasmiy24.uz/uz/article/1217/ · Rasmiy24 - Latest News and Articles
+- 2026-11-28 · https://www.gazeta.uz/uz/2026/11/28/meat-uzbekistan/ · Озуқа танқислиги ва гўшт нархлари. Ўзбекистон гўшт етиштиришни 400 минг тоннага қандай оши
 
 ## O'tkaziladi
 
